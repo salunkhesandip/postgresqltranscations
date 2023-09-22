@@ -3,6 +3,7 @@ package com.cleancoders.postgresqltranscations.service;
 import com.cleancoders.postgresqltranscations.dto.EmployeeDTO;
 import com.cleancoders.postgresqltranscations.entity.Employee;
 import com.cleancoders.postgresqltranscations.exception.EmployeeConflictException;
+import com.cleancoders.postgresqltranscations.exception.EmployeeNotFoundException;
 import com.cleancoders.postgresqltranscations.mapper.EmployeeMapper;
 import com.cleancoders.postgresqltranscations.repository.EmployeeRepository;
 import jakarta.transaction.Transactional;
@@ -31,5 +32,14 @@ public class EmployeeService {
         employee.setEmpCreatedDate(LocalDate.now());
         employee.setEmpUpdatedDate(LocalDate.now());
         return mapper.convertToEmployeeDTO(employeeRepository.save(employee));
+    }
+
+    public EmployeeDTO findEmployee(int id) {
+        Optional<Employee> existingEmployee = employeeRepository.findById((long) id);
+        if (existingEmployee.isPresent()) {
+            return mapper.convertToEmployeeDTO(existingEmployee.get());
+        } else {
+            throw new EmployeeNotFoundException("Employee " + id + " not found");
+        }
     }
 }

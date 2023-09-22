@@ -13,7 +13,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler()
-    protected ResponseEntity<Object> handleConflict(EmployeeConflictException ex){
+    protected ResponseEntity<Object> handleConflict(EmployeeConflictException ex) {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler()
+    protected ResponseEntity<Object> handleNotFound(EmployeeNotFoundException ex) {
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
     }
 }
