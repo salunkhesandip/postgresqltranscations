@@ -8,6 +8,7 @@ import com.github.fge.jsonpatch.JsonPatchException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,7 +36,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "409", description = "Employee already exists")
     }
     )
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<EmployeeDTO> createEmployee(@Valid @RequestBody EmployeeDTO employee) {
         EmployeeDTO createdEmployeeDTO = employeeService.saveEmployee(employee);
         return ResponseEntity.ok(createdEmployeeDTO);
@@ -46,8 +47,8 @@ public class EmployeeController {
             @ApiResponse(responseCode = "200", description = "Employee found"),
             @ApiResponse(responseCode = "404", description = "Employee doesn't exist")
     })
-    @GetMapping(value = "/{id}")
-    public ResponseEntity<EmployeeDTO>  getEmployee(@PathVariable("id") Long id){
+    @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<EmployeeDTO>  getEmployee(@PathVariable("id") Long id) {
         return ResponseEntity.ok(employeeService.findEmployee(id));
     }
 
@@ -65,7 +66,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "200", description = "Employee updated successfully"),
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
-    @PutMapping()
+    @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<EmployeeDTO> updateEmployee(@Valid @RequestBody EmployeeDTO employeeDTO) {
         EmployeeDTO updatedEmployee = employeeService.updateEmployee(employeeDTO);
         return ResponseEntity.ok(updatedEmployee);
