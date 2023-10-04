@@ -11,14 +11,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.Optional;
 
 @Service
-@Transactional
 public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final EmployeeMapper mapper;
@@ -28,6 +27,7 @@ public class EmployeeService {
         this.employeeRepository = employeeRepository;
         this.mapper = mapper;
     }
+    @Transactional
     public EmployeeDTO saveEmployee(EmployeeDTO employeeDTO) {
         Optional<Employee> existingEmployee = employeeRepository.findById(employeeDTO.getEmpId());
         if (existingEmployee.isPresent()) {
@@ -39,6 +39,7 @@ public class EmployeeService {
         return mapper.convertToEmployeeDTO(employeeRepository.save(employee));
     }
 
+    @Transactional(readOnly = true)
     public EmployeeDTO findEmployee(Long id) {
         Optional<Employee> existingEmployee = employeeRepository.findById(id);
         if (existingEmployee.isPresent()) {
@@ -48,10 +49,12 @@ public class EmployeeService {
         }
     }
 
+    @Transactional
     public void deleteEmployee(Long id) {
         employeeRepository.deleteById(id);
     }
 
+    @Transactional
     public EmployeeDTO updateEmployee(EmployeeDTO employeeDTO) {
         if (employeeRepository.existsById(employeeDTO.getEmpId())) {
             Employee employee = new Employee(employeeDTO.getEmpId(), employeeDTO.getEmpName(), employeeDTO.getEmpSalary());
@@ -63,6 +66,7 @@ public class EmployeeService {
         }
     }
 
+    @Transactional
     public EmployeeDTO patchEmployee(Long id, JsonPatch jsonPatchRequest)
             throws JsonPatchException, JsonProcessingException {
         EmployeeDTO employeeDTO = findEmployee(id);
