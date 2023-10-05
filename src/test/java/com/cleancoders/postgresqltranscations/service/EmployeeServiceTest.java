@@ -3,6 +3,7 @@ package com.cleancoders.postgresqltranscations.service;
 import com.cleancoders.postgresqltranscations.dto.EmployeeDTO;
 import com.cleancoders.postgresqltranscations.entity.Employee;
 import com.cleancoders.postgresqltranscations.exception.EmployeeConflictException;
+import com.cleancoders.postgresqltranscations.exception.EmployeeNotFoundException;
 import com.cleancoders.postgresqltranscations.mapper.EmployeeMapper;
 import com.cleancoders.postgresqltranscations.repository.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class EmployeeServiceTest {
@@ -58,6 +60,25 @@ class EmployeeServiceTest {
         given(employeeRepository.findById(anyLong())).willReturn(createEmployee());
         given(mapper.convertToEmployeeDTO(any(Employee.class))).willReturn(employeeDTO);
         assertNotNull(employeeService.findEmployee(TEST_EMPLOYEE_ID));
+    }
+    @Test
+    void Given_EmployeeNotExist_FindEmployee_EmployeeNotFoundException() {
+        given(employeeRepository.findById(anyLong())).willThrow(new EmployeeNotFoundException());
+        assertThrows(EmployeeNotFoundException.class, () -> employeeService.findEmployee(TEST_EMPLOYEE_ID));
+    }
+    @Test
+    void Given_EmployeeId_DeleteById_Deleted() {
+        employeeService.deleteEmployee(TEST_EMPLOYEE_ID);
+        verify(employeeRepository).deleteById(TEST_EMPLOYEE_ID);
+    }
+
+    @Test
+    void Given_EmployeeDTO_UpdateEmployee_Updated() {
+        given(employeeRepository.existsById(anyLong())).willReturn(true);
+        given(employeeRepository.save(any(Employee.class)))
+                .willReturn(new Employee(TEST_EMPLOYEE_ID, TEST_EMPLOYEE_NAME, TEST_EMPLOYEE_SALARY));
+        given(mapper.convertToEmployeeDTO(any(Employee.class))).willReturn(employeeDTO);
+        assertNotNull(employeeService.updateEmployee(employeeDTO));
     }
     Optional <Employee> createEmployee() {
         return Optional.of(new Employee(TEST_EMPLOYEE_ID, TEST_EMPLOYEE_NAME, TEST_EMPLOYEE_SALARY));
