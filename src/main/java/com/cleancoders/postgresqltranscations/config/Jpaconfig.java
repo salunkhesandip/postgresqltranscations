@@ -23,20 +23,6 @@ import javax.sql.DataSource;
 public class Jpaconfig {
     @Autowired
     private Environment env;
-    @Bean
-    public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
-
-        HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
-        vendorAdapter.setDatabase(Database.POSTGRESQL);
-        vendorAdapter.setGenerateDdl(true);
-
-        LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
-        em.setDataSource(dataSource());
-        em.setPackagesToScan("com.cleancoders.postgresqltranscations.entity");
-        em.setJpaVendorAdapter(vendorAdapter);
-
-        return em;
-    }
 
     @Bean
     public DataSource dataSource() {
@@ -47,6 +33,18 @@ public class Jpaconfig {
         dataSource.setPassword(env.getProperty("spring.datasource.password"));
         return dataSource;
     }
+    @Bean
+    public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
+        HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
+        vendorAdapter.setDatabase(Database.POSTGRESQL);
+        vendorAdapter.setGenerateDdl(true);
+        LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
+        em.setDataSource(dataSource());
+        em.setPackagesToScan("com.cleancoders.postgresqltranscations.entity");
+        em.setJpaVendorAdapter(vendorAdapter);
+        return em;
+    }
+
     @Bean
     public PlatformTransactionManager transactionManager(EntityManagerFactory emf) {
         JpaTransactionManager transactionManager = new JpaTransactionManager();
