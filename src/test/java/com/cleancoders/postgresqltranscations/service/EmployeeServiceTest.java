@@ -6,9 +6,6 @@ import com.cleancoders.postgresqltranscations.exception.EmployeeConflictExceptio
 import com.cleancoders.postgresqltranscations.exception.EmployeeNotFoundException;
 import com.cleancoders.postgresqltranscations.mapper.EmployeeMapper;
 import com.cleancoders.postgresqltranscations.repository.EmployeeRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -105,7 +102,6 @@ class EmployeeServiceTest {
                 .willReturn(new Employee(TEST_EMPLOYEE_ID, TEST_EMPLOYEE_NAME, TEST_EMPLOYEE_SALARY));
         given(mapper.convertToEmployeeDTO(any(Employee.class))).willReturn(employeeDTO);
 
-        ObjectMapper objectMapper = new ObjectMapper();
         String jsonPatchString = """
                 [
                     {
@@ -114,10 +110,8 @@ class EmployeeServiceTest {
                         "value": "Sandip Salunkhe"
                     }
                 ]""";
-        JsonNode jsonNode = objectMapper.readTree(jsonPatchString);
-        JsonPatch jsonPatch = JsonPatch.fromJson(jsonNode);
 
-        employeeServicespy.patchEmployee(TEST_EMPLOYEE_ID, jsonPatch);
+        employeeServicespy.patchEmployee(TEST_EMPLOYEE_ID, jsonPatchString);
     }
 
     Optional<Employee> createEmployee() {

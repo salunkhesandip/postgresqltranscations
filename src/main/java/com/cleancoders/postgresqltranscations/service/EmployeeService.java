@@ -11,10 +11,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -49,6 +50,26 @@ public class EmployeeService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public List<Employee> findEmployeesBySalary(Long salary) {
+        List<Employee> employeeList = employeeRepository.findBySalaryGreaterThan(salary);
+        if (employeeList.isEmpty()) {
+            throw new EmployeeNotFoundException("Employee not found for more salary than" + salary);
+        } else {
+            return employeeList;
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<Employee> findEmployeesBySalaryNative(Long salary) {
+        List<Employee> employeeList = employeeRepository.findBySalaryGreaterThanNative(salary);
+        if (employeeList.isEmpty()) {
+            throw new EmployeeNotFoundException("Employee not found for more salary than" + salary);
+        } else {
+            return employeeList;
+        }
+    }
+
     @Transactional
     public void deleteEmployee(Long id) {
         employeeRepository.deleteById(id);
@@ -67,15 +88,21 @@ public class EmployeeService {
     }
 
     @Transactional
-    public EmployeeDTO patchEmployee(Long id, JsonPatch jsonPatchRequest)
+    public EmployeeDTO patchEmployee(Long id, String jsonPatchRequest)
             throws JsonPatchException, JsonProcessingException {
+        JsonPatch jsonPatch = objectMapper.readValue(jsonPatchRequest, JsonPatch.class);
         EmployeeDTO employeeDTO = findEmployee(id);
-        return updateEmployee(applyPatchToEmployee(jsonPatchRequest, employeeDTO));
+        return updateEmployee(applyPatchToEmployee(jsonPatch, employeeDTO));
     }
 
     private EmployeeDTO applyPatchToEmployee(JsonPatch patch, EmployeeDTO employeeDTO)
             throws JsonPatchException, JsonProcessingException {
         JsonNode patched = patch.apply(objectMapper.convertValue(employeeDTO, JsonNode.class));
         return objectMapper.treeToValue(patched, EmployeeDTO.class);
+    }
+
+    @Transactional
+    public void deleteEmployeeWithGreaterSalary(Long salary) {
+        employeeRepository.deleteUsersBySalaryGreater(salary);
     }
 }

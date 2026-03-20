@@ -5,14 +5,13 @@ import com.cleancoders.postgresqltranscations.exception.EmployeeConflictExceptio
 import com.cleancoders.postgresqltranscations.exception.EmployeeNotFoundException;
 import com.cleancoders.postgresqltranscations.service.EmployeeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static com.cleancoders.postgresqltranscations.constants.EmployeeConstTest.TEST_EMPLOYEE_ID;
@@ -33,9 +32,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class EmployeeControllerTest {
     @Autowired
     MockMvc mockMvc;
-    @MockBean
+    @MockitoBean
     EmployeeService employeeService;
     ObjectMapper mapper = new ObjectMapper();
+
     //Given_Precondition_When_StateUnderTest_Then_ExpectedBehavior
     @Test
     void Given_EmployeeId_When_GetEmployee_Then_SuccessResponse() throws Exception {
@@ -86,14 +86,15 @@ class EmployeeControllerTest {
         EmployeeDTO employeeDTO = createEmployeeDTO();
         String requestJson = mapper.writeValueAsString(employeeDTO);
         mockMvc.perform(put("/employees")
-                .contentType(MediaType.APPLICATION_JSON_VALUE)
-                .content(requestJson))
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .content(requestJson))
                 .andExpect(status().isOk());
     }
+
     @Test
     void Given_EmployeeExists_When_PatchEmployee_Then_SuccessResponse() throws Exception {
         EmployeeDTO employeeDTO = createEmployeeDTO();
-        given(employeeService.patchEmployee(anyLong(), any(JsonPatch.class)))
+        given(employeeService.patchEmployee(anyLong(), any(String.class)))
                 .willReturn(employeeDTO);
         String patchRequest = """
                 [
@@ -110,7 +111,7 @@ class EmployeeControllerTest {
 
     @Test
     void Given_Employee_When_PatchEmployee_JsonError_Then_FailureResponse() throws Exception {
-        given(employeeService.patchEmployee(anyLong(), any(JsonPatch.class)))
+        given(employeeService.patchEmployee(anyLong(), any(String.class)))
                 .willThrow(new JsonPatchException("Error"));
         String patchRequest = """
                 [
@@ -121,8 +122,8 @@ class EmployeeControllerTest {
                     }
                 ]""";
         mockMvc.perform(patch("/employees/" + TEST_EMPLOYEE_ID)
-                .contentType("application/json-patch+json")
-                .content(patchRequest))
+                        .contentType("application/json-patch+json")
+                        .content(patchRequest))
                 .andExpect(status().isInternalServerError());
     }
 

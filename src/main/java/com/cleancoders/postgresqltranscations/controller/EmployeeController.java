@@ -1,9 +1,9 @@
 package com.cleancoders.postgresqltranscations.controller;
 
 import com.cleancoders.postgresqltranscations.dto.EmployeeDTO;
+import com.cleancoders.postgresqltranscations.entity.Employee;
 import com.cleancoders.postgresqltranscations.service.EmployeeService;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -20,7 +20,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
+import java.util.List;
+
 @RestController
 @RequestMapping("/employees")
 public class EmployeeController {
@@ -78,7 +80,7 @@ public class EmployeeController {
     })
     @PatchMapping(value = "/{id}", consumes = "application/json-patch+json")
     public ResponseEntity<EmployeeDTO> patchEmployee(@PathVariable("id") Long id,
-                                                     @RequestBody JsonPatch jsonPatchRequest) {
+                                                     @RequestBody String jsonPatchRequest) {
         EmployeeDTO patchedEmployee;
         try {
             patchedEmployee = employeeService.patchEmployee(id, jsonPatchRequest);
@@ -86,5 +88,34 @@ public class EmployeeController {
             return ResponseEntity.internalServerError().build();
         }
         return ResponseEntity.ok(patchedEmployee);
+    }
+
+    @Operation(description = "Retrieve Employees greater than specified salary")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Employees List"),
+            @ApiResponse(responseCode = "404", description = "Employee doesn't exist")
+    })
+    @GetMapping(value = "/salary/{salary}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<Employee>> findEmployeesBySalary(@PathVariable("salary") Long salary) {
+        return ResponseEntity.ok(employeeService.findEmployeesBySalary(salary));
+    }
+
+    @Operation(description = "Retrieve Employees greater than specified salary")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Employees List"),
+            @ApiResponse(responseCode = "404", description = "Employee doesn't exist")
+    })
+    @GetMapping(value = "/salary/native/{salary}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<Employee>> findEmployeesBySalaryNative(@PathVariable("salary") Long salary) {
+        return ResponseEntity.ok(employeeService.findEmployeesBySalaryNative(salary));
+    }
+
+    @Operation(description = "Delete Employee having salary greater")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Employee deleted")})
+    @DeleteMapping(value = "/salary/{salary}")
+    public ResponseEntity<Void> deleteEmployeeWithGreaterSalary(@PathVariable("salary") Long salary) {
+        employeeService.deleteEmployeeWithGreaterSalary(salary);
+        return ResponseEntity.noContent().build();
     }
 }
