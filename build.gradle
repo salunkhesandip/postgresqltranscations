@@ -1,7 +1,6 @@
 plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.0.4'
-	id 'io.spring.dependency-management' version '1.1.7'
 	id 'jacoco'
 }
 
@@ -13,15 +12,22 @@ repositories {
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	implementation(enforcedPlatform(libs.springBootBom))
+	// Spring Boot managed starters (versions from BOM)
+	implementation libs.springBootStarterDataJpa
+	implementation libs.springBootStarterWeb
 
-	implementation 'org.modelmapper:modelmapper:3.2.0'
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0'
-	implementation 'com.github.java-json-tools:json-patch:1.13'
-	runtimeOnly 'org.postgresql:postgresql'
+	// Testing
+	testImplementation libs.springBootStarterTest
+	testImplementation libs.springBootStarterWebMvcTest
+
+	// Third-party libraries (centralized in gradle/libs.versions.toml)
+	implementation libs.modelmapper
+	implementation libs.springdocOpenapi
+	implementation libs.jsonPatch
+
+	// JDBC driver
+	runtimeOnly libs.postgresql
 }
 jacocoTestReport {
 	reports {
