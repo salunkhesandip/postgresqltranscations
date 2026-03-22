@@ -1,0 +1,36 @@
+/**
+ * Centralized dependency declarations.
+ * All versions are managed via gradle/libs.versions.toml (Version Catalog).
+ */
+dependencies {
+    // -------------------------------------------------------------------------
+    // Platform — import Spring Boot BOM to align all managed dependency versions
+    // -------------------------------------------------------------------------
+    implementation(enforcedPlatform(libs.springBootBom))
+
+    // -------------------------------------------------------------------------
+    // Spring Boot starters (versions resolved by BOM above)
+    // -------------------------------------------------------------------------
+    implementation libs.springBootStarterDataJpa
+    implementation libs.springBootStarterWeb
+
+    // -------------------------------------------------------------------------
+    // Third-party libraries (versions pinned in gradle/libs.versions.toml)
+    // -------------------------------------------------------------------------
+    implementation libs.modelmapper
+    implementation libs.springdocOpenapi
+    implementation libs.jsonPatch
+    implementation libs.resilience4j
+
+    // -------------------------------------------------------------------------
+    // Runtime-only — JDBC driver (no compile-time dependency needed)
+    // -------------------------------------------------------------------------
+    runtimeOnly libs.postgresql
+
+    // -------------------------------------------------------------------------
+    // Test dependencies
+    // -------------------------------------------------------------------------
+    testImplementation libs.springBootStarterTest
+    testImplementation libs.springBootStarterWebMvcTest
+}
+

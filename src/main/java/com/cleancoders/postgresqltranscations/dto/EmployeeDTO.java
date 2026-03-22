@@ -4,6 +4,7 @@ import jakarta.persistence.Id;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 public class EmployeeDTO implements Serializable {
     @Id
@@ -11,7 +12,7 @@ public class EmployeeDTO implements Serializable {
     @NotEmpty
     private String empName;
     @NotNull
-    private Long empSalary;
+    private BigDecimal empSalary;
 
     public Long getEmpId() {
         return empId;
@@ -29,11 +30,11 @@ public class EmployeeDTO implements Serializable {
         this.empName = empName;
     }
 
-    public Long getEmpSalary() {
+    public BigDecimal getEmpSalary() {
         return empSalary;
     }
 
-    public void setEmpSalary(Long empSalary) {
+    public void setEmpSalary(BigDecimal empSalary) {
         this.empSalary = empSalary;
     }
 }

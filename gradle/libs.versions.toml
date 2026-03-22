@@ -1,0 +1,24 @@
+# Version catalog for centralized dependency versions
+
+[versions]
+modelmapper = "3.2.6"
+springdoc = "3.0.0"
+json-patch = "1.13"
+postgresql = "42.6.0"
+springboot = "4.0.4"
+resilience4j = "2.4.0"
+
+[libraries]
+modelmapper = { module = "org.modelmapper:modelmapper", version.ref = "modelmapper" }
+springdocOpenapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+jsonPatch = { module = "com.github.java-json-tools:json-patch", version.ref = "json-patch" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+springBootBom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springboot" }
+resilience4j = { module = "io.github.resilience4j:resilience4j-spring-boot4", version.ref = "resilience4j" }
+
+# Spring Boot starter aliases (version is managed by the BOM)
+springBootStarterDataJpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa", version.ref = "springboot" }
+springBootStarterWeb = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "springboot" }
+springBootStarterTest = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springboot" }
+springBootStarterWebMvcTest = { module = "org.springframework.boot:spring-boot-starter-webmvc-test", version.ref = "springboot" }
+
