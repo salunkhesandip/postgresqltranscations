@@ -20,6 +20,7 @@ dependencies {
     implementation libs.modelmapper
     implementation libs.springdocOpenapi
     implementation libs.jsonPatch
+    implementation libs.resilience4j
 
     // -------------------------------------------------------------------------
     // Runtime-only — JDBC driver (no compile-time dependency needed)
