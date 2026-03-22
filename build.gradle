@@ -11,24 +11,8 @@ repositories {
 	mavenCentral()
 }
 
-dependencies {
-	implementation(enforcedPlatform(libs.springBootBom))
-	// Spring Boot managed starters (versions from BOM)
-	implementation libs.springBootStarterDataJpa
-	implementation libs.springBootStarterWeb
+apply from: 'gradle/dependencies.gradle'
 
-	// Testing
-	testImplementation libs.springBootStarterTest
-	testImplementation libs.springBootStarterWebMvcTest
-
-	// Third-party libraries (centralized in gradle/libs.versions.toml)
-	implementation libs.modelmapper
-	implementation libs.springdocOpenapi
-	implementation libs.jsonPatch
-
-	// JDBC driver
-	runtimeOnly libs.postgresql
-}
 jacocoTestReport {
 	reports {
 		html.required.set(true)
