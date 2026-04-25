@@ -5,7 +5,7 @@ modelmapper = "3.2.6"
 springdoc = "3.0.0"
 json-patch = "1.13"
 postgresql = "42.6.0"
-springboot = "4.0.4"
+springboot = "4.0.5"
 resilience4j = "2.4.0"
 
 [libraries]
@@ -22,3 +22,5 @@ springBootStarterWeb = { module = "org.springframework.boot:spring-boot-starter-
 springBootStarterTest = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springboot" }
 springBootStarterWebMvcTest = { module = "org.springframework.boot:spring-boot-starter-webmvc-test", version.ref = "springboot" }
 
+[plugins]
+springBoot = { id = "org.springframework.boot", version.ref = "springboot" }
