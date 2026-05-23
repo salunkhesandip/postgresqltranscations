@@ -1,46 +1,20 @@
-# Testing — Controller & Service
+# REF: testing
 
-## Table of Contents
+Test root: `src/test/java/com/cleancoders/postgresqltranscations/`
 
-1. [Test Source Root](#test-source-root)
-2. [Testing Strategy](#testing-strategy)
-3. [Shared Test Constants](#shared-test-constants)
-4. [Controller Test Template (`@WebMvcTest`)](#controller-test-template-webmvctest)
-5. [Service Test Template (`@ExtendWith`)](#service-test-template-extendwithmockitoextensionclass)
-6. [Coverage Requirements](#coverage-requirements)
-7. [Common Mistakes](#common-mistakes)
-8. [Rules](#rules)
+| Sub-package   | Class                    | Annotation                            |
+|---------------|--------------------------|---------------------------------------|
+| `controller/` | `EmployeeControllerTest` | `@WebMvcTest`                         |
+| `service/`    | `EmployeeServiceTest`    | `@ExtendWith(MockitoExtension.class)` |
+| `constants/`  | `EmployeeTestConstants`  | — shared values only                  |
 
----
+- Controller tests: `@WebMvcTest` + `MockMvc`; mock service with `@MockitoBean` (not `@MockBean`)
+- Service tests: `@ExtendWith(MockitoExtension.class)`; no Spring context; no `@SpringBootTest`
+- Assertions: AssertJ `assertThat`; `jsonPath` for every key response field
+- Cover happy path + 404 / 409 / 400 for every operation
+- All magic values from `EmployeeTestConstants` — never inline literals
 
-## Test Source Root
-
-```
-src/test/java/com/cleancoders/postgresqltranscations/
-```
-
-| Sub-package   | Test class               | Purpose                                           |
-|---------------|--------------------------|---------------------------------------------------|
-| `controller/` | `EmployeeControllerTest` | `@WebMvcTest` — mock service, real HTTP layer     |
-| `service/`    | `EmployeeServiceTest`    | `@ExtendWith(MockitoExtension.class)` — pure unit |
-| `constants/`  | `EmployeeTestConstants`  | Shared magic values — IDs, names, salaries        |
-
----
-
-## Testing Strategy
-
-| What to test                          | Framework                 | Spring context?          |
-|---------------------------------------|---------------------------|--------------------------|
-| HTTP routing, status codes, JSON body | `@WebMvcTest` + `MockMvc` | Slice — controllers only |
-| Service business logic                | Mockito + `@ExtendWith`   | None                     |
-| Exception paths (404, 409, 400)       | Both tiers                | As above                 |
-
-> **Do not** use `@SpringBootTest` for unit or slice tests — it loads the full application
-> context and makes tests slow.
-
----
-
-## Shared Test Constants
+## SHARED CONSTANTS TEMPLATE
 
 ```java
 package com.cleancoders.postgresqltranscations.constants;
@@ -48,35 +22,28 @@ package com.cleancoders.postgresqltranscations.constants;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/**
- * Shared constants for controller and service test classes.
- * Add new constants here; never duplicate magic values across test files.
- */
 public class EmployeeTestConstants {
 
-    private EmployeeTestConstants() {}          // prevent instantiation
+    private EmployeeTestConstants() {}
 
-    public static final Long     EMP_ID          = 1L;
-    public static final Long     UNKNOWN_EMP_ID  = 99L;
-    public static final String   EMP_NAME        = "Alice";
-    public static final String   EMP_NAME_UPDATED = "Alice Smith";
-    public static final BigDecimal EMP_SALARY    = new BigDecimal("50000.00");
+    public static final Long      EMP_ID           = 1L;
+    public static final Long      UNKNOWN_EMP_ID   = 99L;
+    public static final String    EMP_NAME         = "Alice";
+    public static final String    EMP_NAME_UPDATED = "Alice Smith";
+    public static final BigDecimal EMP_SALARY      = new BigDecimal("50000.00");
     public static final BigDecimal EMP_SALARY_HIGH = new BigDecimal("80000.00");
-    public static final String   EMP_ADDRESS     = "123 Main St";
-    public static final String   EMP_CREATED_BY  = "admin";
+    public static final String    EMP_ADDRESS      = "123 Main St";
+    public static final String    EMP_CREATED_BY   = "admin";
     public static final LocalDate EMP_CREATED_DATE = LocalDate.of(2024, 1, 15);
 }
 ```
 
-Import these in both controller and service tests:
-
+Import in both test classes:
 ```java
 import static com.cleancoders.postgresqltranscations.constants.EmployeeTestConstants.*;
 ```
 
----
-
-## Controller Test Template (`@WebMvcTest`)
+## CONTROLLER TEST TEMPLATE
 
 ```java
 package com.cleancoders.postgresqltranscations.controller;
@@ -93,39 +60,24 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.math.BigDecimal;
 import java.util.List;
 
 import static com.cleancoders.postgresqltranscations.constants.EmployeeTestConstants.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(EmployeeController.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EmployeeControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
+    @MockitoBean  private EmployeeService employeeService;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean                           // Spring Boot 3.4+ — replaces @MockBean
-    private EmployeeService employeeService;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    // ── CREATE — 201 ──────────────────────────────────────────────────────────
-
+    // CREATE — 201
     @Test
     void createEmployee_returns201() throws Exception {
         var dto = new EmployeeDTO(EMP_ID, EMP_NAME, EMP_SALARY);
@@ -154,7 +106,6 @@ class EmployeeControllerTest {
 
     @Test
     void createEmployee_returns400_whenBodyInvalid() throws Exception {
-        // empId = null and empName = blank trigger @Valid failures
         var invalidDto = new EmployeeDTO(null, "", EMP_SALARY);
 
         mockMvc.perform(post("/employees")
@@ -163,8 +114,7 @@ class EmployeeControllerTest {
             .andExpect(status().isBadRequest());
     }
 
-    // ── GET — 200 / 404 ───────────────────────────────────────────────────────
-
+    // GET — 200 / 404
     @Test
     void getEmployee_returns200() throws Exception {
         var dto = new EmployeeDTO(EMP_ID, EMP_NAME, EMP_SALARY);
@@ -185,8 +135,7 @@ class EmployeeControllerTest {
             .andExpect(status().isNotFound());
     }
 
-    // ── FULL UPDATE — 200 / 404 ───────────────────────────────────────────────
-
+    // PUT — 200 / 404
     @Test
     void updateEmployee_returns200() throws Exception {
         var dto = new EmployeeDTO(EMP_ID, EMP_NAME_UPDATED, EMP_SALARY_HIGH);
@@ -211,20 +160,17 @@ class EmployeeControllerTest {
             .andExpect(status().isNotFound());
     }
 
-    // ── JSON PATCH — 200 / 404 ────────────────────────────────────────────────
-
+    // PATCH — 200 / 404
     @Test
     void patchEmployee_returns200() throws Exception {
         var patched = new EmployeeDTO(EMP_ID, EMP_NAME_UPDATED, EMP_SALARY_HIGH);
         when(employeeService.patchEmployee(eq(EMP_ID), any())).thenReturn(patched);
 
-        String patchBody = """
-            [{ "op": "replace", "path": "/empName", "value": "Alice Smith" }]
-            """;
-
         mockMvc.perform(patch("/employees/{id}", EMP_ID)
                 .contentType("application/json-patch+json")
-                .content(patchBody))
+                .content("""
+                    [{ "op": "replace", "path": "/empName", "value": "Alice Smith" }]
+                    """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.empName").value(EMP_NAME_UPDATED));
     }
@@ -234,18 +180,15 @@ class EmployeeControllerTest {
         when(employeeService.patchEmployee(eq(UNKNOWN_EMP_ID), any()))
             .thenThrow(new EmployeeNotFoundException("Not found: " + UNKNOWN_EMP_ID));
 
-        String patchBody = """
-            [{ "op": "replace", "path": "/empName", "value": "Ghost" }]
-            """;
-
         mockMvc.perform(patch("/employees/{id}", UNKNOWN_EMP_ID)
                 .contentType("application/json-patch+json")
-                .content(patchBody))
+                .content("""
+                    [{ "op": "replace", "path": "/empName", "value": "Ghost" }]
+                    """))
             .andExpect(status().isNotFound());
     }
 
-    // ── DELETE — 204 / 404 ────────────────────────────────────────────────────
-
+    // DELETE — 204 / 404
     @Test
     void deleteEmployee_returns204() throws Exception {
         doNothing().when(employeeService).deleteEmployee(EMP_ID);
@@ -263,8 +206,7 @@ class EmployeeControllerTest {
             .andExpect(status().isNotFound());
     }
 
-    // ── SALARY FILTER — 200 ───────────────────────────────────────────────────
-
+    // SALARY FILTER — 200
     @Test
     void bySalary_returns200_withMatchingEmployees() throws Exception {
         var dto = new EmployeeDTO(EMP_ID, EMP_NAME, EMP_SALARY_HIGH);
@@ -287,9 +229,7 @@ class EmployeeControllerTest {
 }
 ```
 
----
-
-## Service Test Template (`@ExtendWith(MockitoExtension.class)`)
+## SERVICE TEST TEMPLATE
 
 ```java
 package com.cleancoders.postgresqltranscations.service;
@@ -305,7 +245,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -314,67 +253,51 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class EmployeeServiceTest {
 
-    @Mock
-    private EmployeeRepository employeeRepository;
+    @Mock private EmployeeRepository employeeRepository;
+    @Mock private EmployeeMapper mapper;
+    @InjectMocks private EmployeeService employeeService;
 
-    @Mock
-    private EmployeeMapper mapper;
-
-    @InjectMocks
-    private EmployeeService employeeService;
-
-    // ── CREATE — happy path ───────────────────────────────────────────────────
-
+    // CREATE — happy path
     @Test
     void saveEmployee_returnsDTO_whenEmployeeIsNew() {
-        var dto = new EmployeeDTO(EMP_ID, EMP_NAME, EMP_SALARY);
+        var dto    = new EmployeeDTO(EMP_ID, EMP_NAME, EMP_SALARY);
         var entity = new Employee();
         when(employeeRepository.findById(EMP_ID)).thenReturn(Optional.empty());
         when(mapper.toEntity(dto)).thenReturn(entity);
         when(employeeRepository.save(entity)).thenReturn(entity);
         when(mapper.toDTO(entity)).thenReturn(dto);
 
-        EmployeeDTO result = employeeService.saveEmployee(dto);
-
-        assertThat(result.getEmpName()).isEqualTo(EMP_NAME);
+        assertThat(employeeService.saveEmployee(dto).getEmpName()).isEqualTo(EMP_NAME);
         verify(employeeRepository).save(entity);
     }
 
-    // ── CREATE — conflict ─────────────────────────────────────────────────────
-
+    // CREATE — conflict
     @Test
     void saveEmployee_throwsConflict_whenEmployeeAlreadyExists() {
         when(employeeRepository.findById(EMP_ID)).thenReturn(Optional.of(new Employee()));
 
         assertThrows(EmployeeConflictException.class,
             () -> employeeService.saveEmployee(new EmployeeDTO(EMP_ID, EMP_NAME, EMP_SALARY)));
-
         verify(employeeRepository, never()).save(any());
     }
 
-    // ── READ — happy path ─────────────────────────────────────────────────────
-
+    // READ — happy path
     @Test
     void findEmployee_returnsDTO_whenFound() {
         var entity = new Employee();
-        var dto = new EmployeeDTO(EMP_ID, EMP_NAME, EMP_SALARY);
+        var dto    = new EmployeeDTO(EMP_ID, EMP_NAME, EMP_SALARY);
         when(employeeRepository.findById(EMP_ID)).thenReturn(Optional.of(entity));
         when(mapper.toDTO(entity)).thenReturn(dto);
 
-        EmployeeDTO result = employeeService.findEmployee(EMP_ID);
-
-        assertThat(result.getEmpId()).isEqualTo(EMP_ID);
+        assertThat(employeeService.findEmployee(EMP_ID).getEmpId()).isEqualTo(EMP_ID);
     }
 
-    // ── READ — not found ──────────────────────────────────────────────────────
-
+    // READ — not found
     @Test
     void findEmployee_throwsNotFound_whenMissing() {
         when(employeeRepository.findById(UNKNOWN_EMP_ID)).thenReturn(Optional.empty());
@@ -384,35 +307,29 @@ class EmployeeServiceTest {
             .hasMessageContaining(String.valueOf(UNKNOWN_EMP_ID));
     }
 
-    // ── FULL UPDATE — happy path ──────────────────────────────────────────────
-
+    // UPDATE — happy path
     @Test
     void updateEmployee_returnsUpdatedDTO_whenFound() {
-        var dto = new EmployeeDTO(EMP_ID, EMP_NAME_UPDATED, EMP_SALARY_HIGH);
+        var dto    = new EmployeeDTO(EMP_ID, EMP_NAME_UPDATED, EMP_SALARY_HIGH);
         var entity = new Employee();
         when(employeeRepository.findById(EMP_ID)).thenReturn(Optional.of(entity));
         when(mapper.toEntity(dto)).thenReturn(entity);
         when(employeeRepository.save(entity)).thenReturn(entity);
         when(mapper.toDTO(entity)).thenReturn(dto);
 
-        EmployeeDTO result = employeeService.updateEmployee(dto);
-
-        assertThat(result.getEmpName()).isEqualTo(EMP_NAME_UPDATED);
+        assertThat(employeeService.updateEmployee(dto).getEmpName()).isEqualTo(EMP_NAME_UPDATED);
     }
 
-    // ── FULL UPDATE — not found ───────────────────────────────────────────────
-
+    // UPDATE — not found
     @Test
     void updateEmployee_throwsNotFound_whenMissing() {
         var dto = new EmployeeDTO(UNKNOWN_EMP_ID, EMP_NAME, EMP_SALARY);
         when(employeeRepository.findById(UNKNOWN_EMP_ID)).thenReturn(Optional.empty());
 
-        assertThrows(EmployeeNotFoundException.class,
-            () -> employeeService.updateEmployee(dto));
+        assertThrows(EmployeeNotFoundException.class, () -> employeeService.updateEmployee(dto));
     }
 
-    // ── DELETE — happy path ───────────────────────────────────────────────────
-
+    // DELETE — happy path
     @Test
     void deleteEmployee_deletesSuccessfully_whenFound() {
         when(employeeRepository.findById(EMP_ID)).thenReturn(Optional.of(new Employee()));
@@ -422,24 +339,21 @@ class EmployeeServiceTest {
         verify(employeeRepository).deleteById(EMP_ID);
     }
 
-    // ── DELETE — not found ────────────────────────────────────────────────────
-
+    // DELETE — not found
     @Test
     void deleteEmployee_throwsNotFound_whenMissing() {
         when(employeeRepository.findById(UNKNOWN_EMP_ID)).thenReturn(Optional.empty());
 
         assertThrows(EmployeeNotFoundException.class,
             () -> employeeService.deleteEmployee(UNKNOWN_EMP_ID));
-
         verify(employeeRepository, never()).deleteById(any());
     }
 
-    // ── SALARY FILTER ─────────────────────────────────────────────────────────
-
+    // SALARY FILTER
     @Test
     void findBySalaryGreaterThan_returnsListOfDTOs() {
         var entity = new Employee();
-        var dto = new EmployeeDTO(EMP_ID, EMP_NAME, EMP_SALARY_HIGH);
+        var dto    = new EmployeeDTO(EMP_ID, EMP_NAME, EMP_SALARY_HIGH);
         when(employeeRepository.findBySalaryGreaterThan(50000L)).thenReturn(List.of(entity));
         when(mapper.toDTO(entity)).thenReturn(dto);
 
@@ -450,49 +364,4 @@ class EmployeeServiceTest {
     }
 }
 ```
-
----
-
-## Coverage Requirements
-
-| Layer      | Minimum coverage | Excluded                          |
-|------------|------------------|-----------------------------------|
-| Service    | 80 %+            | —                                 |
-| Controller | 80 %+            | —                                 |
-| Entity     | Excluded         | Configured in `build.gradle`      |
-| DTO        | Not enforced     | Pure data carrier                 |
-
-Run `./gradlew.bat jacocoTestReport` to view coverage at
-`build/reports/jacoco/test/html/index.html`.
-
----
-
-## Common Mistakes
-
-| Mistake                                                    | Correct Approach                                                                          |
-|------------------------------------------------------------|-------------------------------------------------------------------------------------------|
-| Using `@MockBean` instead of `@MockitoBean`                | `@MockitoBean` (Spring Boot 3.4+) — `@MockBean` is deprecated                             |
-| Using `@SpringBootTest` for unit/slice tests               | `@WebMvcTest` for controller, `@ExtendWith` for service                                   |
-| Asserting with `assertEquals` / `assertTrue` (JUnit 4)     | Use AssertJ `assertThat(...)` instead                                                     |
-| Testing only the happy path                                | Add 404, 409, and 400 error path tests for every endpoint                                 |
-| Duplicating magic literals (`1L`, `"Alice"`) in test files | Always use `EmployeeTestConstants`                                                        |
-| Missing `jsonPath` assertion for key response fields       | Assert every important field with `jsonPath`                                              |
-| Forgetting `verify(...)` after a delete test               | Confirm `deleteById` was (or was not) called                                              |
-| Not importing `MockMvcRequestBuilders` statically          | Use `import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*` |
-| Setting up a full Spring context for a service unit test   | Use `@ExtendWith(MockitoExtension.class)` — no context needed                             |
-
----
-
-## Rules
-
-- Use `@WebMvcTest` for controller tests — **do not** load the full Spring application context.
-- Use `@MockitoBean` (Spring Boot 3.4+) to mock `EmployeeService` in web-layer tests; **never** `@MockBean`.
-- Use `@ExtendWith(MockitoExtension.class)` for pure service unit tests — no Spring context at all.
-- Use AssertJ `assertThat(...)` for value assertions; use `assertThrows(...)` for exception assertions.
-- Do **not** use raw JUnit 4 `assertEquals` / `assertTrue`.
-- Verify `jsonPath` assertions for every important JSON field in controller tests.
-- Test the happy path **and** every exception path (`404`, `409`, `400`) for every operation.
-- All shared magic values (IDs, names, salaries) live in `EmployeeTestConstants` — never duplicate them.
-- Every new service method added to `EmployeeService` must have a matching test in `EmployeeServiceTest`.
-- Every new endpoint added to `EmployeeController` must have a matching test in `EmployeeControllerTest`.
 
