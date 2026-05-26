@@ -23,3 +23,40 @@ logging:
         SQL: DEBUG
         type.descriptor.sql: TRACE
         orm.jdbc.bind: TRACE
+
+# Resilience4j CircuitBreaker configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED        # COUNT_BASED or TIME_BASED
+        slidingWindowSize: 100                # number of calls in the sliding window (for COUNT_BASED)
+        minimumNumberOfCalls: 10              # minimum calls before calculating failure rate
+        permittedNumberOfCallsInHalfOpenState: 10
+        waitDurationInOpenState: 10s          # how long to keep the CB open before moving to HALF_OPEN
+        failureRateThreshold: 50              # percentage of failures to trip the CB
+        slowCallRateThreshold: 100            # percent of slow calls to consider as failure (optional)
+        slowCallDurationThreshold: 2s         # threshold to mark a call as slow (Duration)
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - java.io.IOException
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException$NotFound
+    instances:
+      backendA:
+        baseConfig: default
+        # per-instance override example
+        slidingWindowSize: 50
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 40
+        waitDurationInOpenState: 15s
+        recordExceptions:
+          - java.net.SocketTimeoutException
+      databaseCalls:
+        baseConfig: default
+        slidingWindowType: TIME_BASED         # use a time window for DB calls
+        slidingWindowSize: 60                 # 60 seconds when TIME_BASED
+        minimumNumberOfCalls: 20
+        failureRateThreshold: 60
+        waitDurationInOpenState: 30s

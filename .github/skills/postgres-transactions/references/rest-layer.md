@@ -1,49 +1,12 @@
-# Controller, DTO & Mapper Patterns
+# REF: rest-layer
 
-## Table of Contents
+Packages:
+- Controller — `com.cleancoders.postgresqltranscations.controller`
+- DTO — `com.cleancoders.postgresqltranscations.dto`
+- Mapper — `com.cleancoders.postgresqltranscations.mapper`
+- Exception — `com.cleancoders.postgresqltranscations.exception`
 
-1. [Packages](#packages)
-2. [REST Endpoints at a Glance](#rest-endpoints-at-a-glance)
-3. [Controller Template](#controller-template)
-4. [DTO Template](#dto-template)
-5. [Mapper Template](#mapper-template)
-6. [Global Exception Handler Template](#global-exception-handler-template)
-7. [JSON Patch Request Format](#json-patch-request-format)
-8. [OpenAPI Annotation Guide](#openapi-annotation-guide)
-9. [HTTP Response Shape](#http-response-shape)
-10. [Common Mistakes](#common-mistakes)
-11. [Rules](#rules)
-
----
-
-## Packages
-
-| Layer             | Package                                                    |
-|-------------------|------------------------------------------------------------|
-| Controller        | `com.cleancoders.postgresqltranscations.controller`        |
-| DTO               | `com.cleancoders.postgresqltranscations.dto`               |
-| Mapper            | `com.cleancoders.postgresqltranscations.mapper`            |
-| Exception handler | `com.cleancoders.postgresqltranscations.exception`         |
-
----
-
-## REST Endpoints at a Glance
-
-| Method   | Path                                | Status         | Description                          |
-|----------|-------------------------------------|----------------|--------------------------------------|
-| `POST`   | `/employees`                        | 201 Created    | Create employee                      |
-| `GET`    | `/employees/{id}`                   | 200 OK         | Get by ID                            |
-| `PUT`    | `/employees`                        | 200 OK         | Full update                          |
-| `PATCH`  | `/employees/{id}`                   | 200 OK         | Partial update — RFC 6902 JSON Patch |
-| `DELETE` | `/employees/{id}`                   | 204 No Content | Delete by ID                         |
-| `GET`    | `/employees/salary/{salary}`        | 200 OK         | JPQL salary filter                   |
-| `GET`    | `/employees/salary/native/{salary}` | 200 OK         | Native SQL salary filter             |
-
-Error responses: `404 Not Found`, `409 Conflict`, `400 Bad Request` (validation failure).
-
----
-
-## Controller Template
+## CONTROLLER TEMPLATE
 
 ```java
 package com.cleancoders.postgresqltranscations.controller;
@@ -58,16 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
@@ -81,8 +35,6 @@ public class EmployeeController {
         this.employeeService = employeeService;
     }
 
-    // ── CREATE ────────────────────────────────────────────────────────────────
-
     @Operation(summary = "Create a new employee")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Employee created"),
@@ -90,11 +42,8 @@ public class EmployeeController {
     })
     @PostMapping
     public ResponseEntity<EmployeeDTO> create(@Valid @RequestBody EmployeeDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(employeeService.saveEmployee(dto));
+        return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.saveEmployee(dto));
     }
-
-    // ── READ ──────────────────────────────────────────────────────────────────
 
     @Operation(summary = "Get employee by ID")
     @ApiResponses({
@@ -106,8 +55,6 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.findEmployee(id));
     }
 
-    // ── FULL UPDATE ───────────────────────────────────────────────────────────
-
     @Operation(summary = "Full update of an employee")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Employee updated"),
@@ -117,8 +64,6 @@ public class EmployeeController {
     public ResponseEntity<EmployeeDTO> update(@Valid @RequestBody EmployeeDTO dto) {
         return ResponseEntity.ok(employeeService.updateEmployee(dto));
     }
-
-    // ── PARTIAL UPDATE (JSON Patch — RFC 6902) ────────────────────────────────
 
     @Operation(summary = "Partial update via JSON Patch (RFC 6902)")
     @ApiResponses({
@@ -132,8 +77,6 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.patchEmployee(id, patch));
     }
 
-    // ── DELETE ────────────────────────────────────────────────────────────────
-
     @Operation(summary = "Delete employee by ID")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Employee deleted"),
@@ -145,18 +88,14 @@ public class EmployeeController {
         return ResponseEntity.noContent().build();
     }
 
-    // ── SALARY FILTER (JPQL) ──────────────────────────────────────────────────
-
-    @Operation(summary = "Find employees with salary greater than given value (JPQL)")
+    @Operation(summary = "Find employees with salary greater than value (JPQL)")
     @ApiResponse(responseCode = "200", description = "List of matching employees")
     @GetMapping("/salary/{salary}")
     public ResponseEntity<List<EmployeeDTO>> bySalary(@PathVariable Long salary) {
         return ResponseEntity.ok(employeeService.findBySalaryGreaterThan(salary));
     }
 
-    // ── SALARY FILTER (Native SQL) ────────────────────────────────────────────
-
-    @Operation(summary = "Find employees with salary greater than given value (Native SQL)")
+    @Operation(summary = "Find employees with salary greater than value (Native SQL)")
     @ApiResponse(responseCode = "200", description = "List of matching employees")
     @GetMapping("/salary/native/{salary}")
     public ResponseEntity<List<EmployeeDTO>> bySalaryNative(@PathVariable Long salary) {
@@ -165,9 +104,7 @@ public class EmployeeController {
 }
 ```
 
----
-
-## DTO Template
+## DTO TEMPLATE
 
 ```java
 package com.cleancoders.postgresqltranscations.dto;
@@ -175,14 +112,9 @@ package com.cleancoders.postgresqltranscations.dto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/**
- * Data-transfer object for Employee.
- * No JPA annotations — Bean Validation only.
- */
 public class EmployeeDTO {
 
     @NotNull(message = "Employee ID must not be null")
@@ -200,8 +132,6 @@ public class EmployeeDTO {
     private String empCreatedBy;
     private String empUpdateBy;
 
-    // ── Constructors ─────────────────────────────────────────────────────────
-
     public EmployeeDTO() {}
 
     public EmployeeDTO(Long empId, String empName, BigDecimal empSalary) {
@@ -209,8 +139,6 @@ public class EmployeeDTO {
         this.empName = empName;
         this.empSalary = empSalary;
     }
-
-    // ── Getters & Setters ────────────────────────────────────────────────────
 
     public Long getEmpId() { return empId; }
     public void setEmpId(Long empId) { this.empId = empId; }
@@ -238,9 +166,7 @@ public class EmployeeDTO {
 }
 ```
 
----
-
-## Mapper Template
+## MAPPER TEMPLATE
 
 ```java
 package com.cleancoders.postgresqltranscations.mapper;
@@ -250,10 +176,6 @@ import com.cleancoders.postgresqltranscations.entity.Employee;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Component;
 
-/**
- * Thin wrapper around ModelMapper.
- * The ModelMapper bean is declared in a @Configuration class (e.g. JpaConfig).
- */
 @Component
 public class EmployeeMapper {
 
@@ -263,21 +185,17 @@ public class EmployeeMapper {
         this.modelMapper = modelMapper;
     }
 
-    /** Converts a JPA entity to a DTO for transport across the API boundary. */
     public EmployeeDTO toDTO(Employee entity) {
         return modelMapper.map(entity, EmployeeDTO.class);
     }
 
-    /** Converts an inbound DTO to a JPA entity for persistence. */
     public Employee toEntity(EmployeeDTO dto) {
         return modelMapper.map(dto, Employee.class);
     }
 }
 ```
 
----
-
-## Global Exception Handler Template
+## EXCEPTION HANDLER TEMPLATE
 
 ```java
 package com.cleancoders.postgresqltranscations.exception;
@@ -288,29 +206,24 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /** 404 — employee not found */
     @ExceptionHandler(EmployeeNotFoundException.class)
     public ResponseEntity<String> handleNotFound(EmployeeNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
-    /** 409 — employee already exists */
     @ExceptionHandler(EmployeeConflictException.class)
     public ResponseEntity<String> handleConflict(EmployeeConflictException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
     }
 
-    /** 400 — Bean Validation (@Valid) failure; returns field → message map */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidation(
-            MethodArgumentNotValidException ex) {
+    public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new LinkedHashMap<>();
         for (FieldError fe : ex.getBindingResult().getFieldErrors()) {
             errors.put(fe.getField(), fe.getDefaultMessage());
@@ -320,97 +233,25 @@ public class GlobalExceptionHandler {
 }
 ```
 
-### Exception Classes
-
 ```java
-// EmployeeNotFoundException — maps to 404
+// EmployeeNotFoundException — 404
 public class EmployeeNotFoundException extends RuntimeException {
     public EmployeeNotFoundException(String message) { super(message); }
 }
 
-// EmployeeConflictException — maps to 409
+// EmployeeConflictException — 409
 public class EmployeeConflictException extends RuntimeException {
     public EmployeeConflictException(String message) { super(message); }
 }
 ```
 
----
+## RESPONSE SHAPE
 
-## JSON Patch Request Format
-
-The `PATCH /employees/{id}` endpoint consumes `application/json-patch+json` (RFC 6902).
-
-The body must be a **JSON array** of operation objects:
-
-```json
-[
-  { "op": "replace", "path": "/empName",    "value": "Alice Smith" },
-  { "op": "replace", "path": "/empSalary",  "value": 85000 },
-  { "op": "replace", "path": "/empAddress", "value": "42 Main St" }
-]
-```
-
-Valid `op` values: `add`, `remove`, `replace`, `move`, `copy`, `test`.
-
-### Common causes of `400 Bad Request`
-
-| Mistake                                               | Fix                                               |
-|-------------------------------------------------------|---------------------------------------------------|
-| Sending `{}` (an object) instead of `[{}]` (an array) | Always use a JSON array as the root element       |
-| Single quotes instead of double quotes                | JSON requires double quotes                       |
-| Trailing comma after the last element                 | Remove trailing commas                            |
-| Missing `Content-Type: application/json-patch+json`   | Always set this header for PATCH requests         |
-| Path referencing a non-existent DTO field             | Check field names against `EmployeeDTO` carefully |
-
----
-
-## OpenAPI Annotation Guide
-
-| Annotation                                | Where                         | Required    |
-|-------------------------------------------|-------------------------------|-------------|
-| `@Tag(name = "...", description = "...")` | Controller class              | Yes         |
-| `@Operation(summary = "...")`             | Every endpoint method         | Yes         |
-| `@ApiResponse(responseCode = "...")`      | Each method (success + error) | Recommended |
-
-Swagger UI is available at `http://localhost:8080/swagger-ui.html` when the app is running.
-
----
-
-## HTTP Response Shape
-
-| Scenario                         | Status | Body                                      |
-|----------------------------------|--------|-------------------------------------------|
-| Successful create                | 201    | `EmployeeDTO` JSON object                 |
-| Successful read / update / patch | 200    | `EmployeeDTO` JSON object                 |
-| Successful delete                | 204    | Empty                                     |
-| Not found                        | 404    | Plain string message                      |
-| Conflict                         | 409    | Plain string message                      |
-| Validation failure               | 400    | `{ "field": "message", ... }` JSON object |
-
----
-
-## Common Mistakes
-
-| Mistake                                            | Correct Approach                                                     |
-|----------------------------------------------------|----------------------------------------------------------------------|
-| Adding business logic inside a controller method   | Controllers are thin — delegate everything to the service            |
-| Missing `@Valid` on `@RequestBody` parameter       | Every `@RequestBody` in the controller must have `@Valid`            |
-| PATCH endpoint missing `consumes` attribute        | Use `consumes = "application/json-patch+json"`                       |
-| Missing `@Operation(summary = "...")` on endpoint  | Every endpoint needs this OpenAPI annotation                         |
-| Missing `@Tag` on the controller class             | Required once per controller                                         |
-| Handling exceptions inside the controller          | All exception mapping belongs in `GlobalExceptionHandler`            |
-| DTO carrying JPA annotations                       | DTOs use Bean Validation (`@NotNull` etc.) — zero JPA                |
-| `ModelMapper` constructed with `new` in the mapper | Inject the `ModelMapper` Spring bean; declare it in `@Configuration` |
-
----
-
-## Rules
-
-- Controllers are **thin**: HTTP method mapping, `@Valid`, and service delegation only. No business logic.
-- DTOs have **no** JPA annotations; use Bean Validation (`@NotNull`, `@NotBlank`, `@DecimalMin`, etc.).
-- Use `@Valid` on **every** `@RequestBody` parameter.
-- JSON Patch endpoints must declare `consumes = "application/json-patch+json"`.
-- Every endpoint needs `@Operation(summary = "...")` for Swagger / OpenAPI docs.
-- Every controller class needs `@Tag(name = "...", description = "...")`.
-- All exception-to-HTTP-status mapping lives exclusively in `GlobalExceptionHandler` (`@RestControllerAdvice`).
-- The `ModelMapper` bean is declared in a `@Configuration` class; inject it into `EmployeeMapper` — never use `new ModelMapper()` inside a component.
+| Scenario              | Status | Body                     |
+|-----------------------|--------|--------------------------|
+| Create                | 201    | `EmployeeDTO` JSON       |
+| Read / update / patch | 200    | `EmployeeDTO` JSON       |
+| Delete                | 204    | Empty                    |
+| Not found             | 404    | Plain string             |
+| Conflict              | 409    | Plain string             |
+| Validation failure    | 400    | `{ "field": "message" }` |
