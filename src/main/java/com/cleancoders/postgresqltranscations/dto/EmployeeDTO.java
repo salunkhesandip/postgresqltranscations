@@ -1,13 +1,12 @@
 package com.cleancoders.postgresqltranscations.dto;
 
-import jakarta.persistence.Id;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.math.BigDecimal;
 
 public class EmployeeDTO implements Serializable {
-    @Id
+    @NotNull
     private Long empId;
     @NotEmpty
     private String empName;

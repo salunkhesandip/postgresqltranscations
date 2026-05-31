@@ -3,20 +3,26 @@ package com.cleancoders.postgresqltranscations.mapper;
 import com.cleancoders.postgresqltranscations.dto.EmployeeDTO;
 import com.cleancoders.postgresqltranscations.entity.Employee;
 import org.modelmapper.ModelMapper;
-import org.modelmapper.convention.MatchingStrategies;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+/**
+ * Thin wrapper around the shared {@link ModelMapper} bean.
+ * Annotated as {@code @Component} — it is not a service (no business logic).
+ * The {@link ModelMapper} instance is injected and configured once in {@code AppConfig}.
+ */
+@Component
 public class EmployeeMapper {
-    private final ModelMapper modelMapper = new ModelMapper();
+    private final ModelMapper modelMapper;
+
+    public EmployeeMapper(ModelMapper modelMapper) {
+        this.modelMapper = modelMapper;
+    }
 
     public EmployeeDTO convertToEmployeeDTO(Employee employee) {
-        modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.LOOSE);
         return modelMapper.map(employee, EmployeeDTO.class);
     }
 
     public Employee convertToEmployee(EmployeeDTO employeeDTO) {
-        modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.LOOSE);
         return modelMapper.map(employeeDTO, Employee.class);
     }
 }

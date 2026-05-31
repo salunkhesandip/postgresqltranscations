@@ -8,17 +8,16 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
-    Optional<Employee> findById(Long empId);
-    // JPQL query
+
+    /** JPQL: returns employees whose salary exceeds the given threshold. */
     @Query("SELECT e FROM Employee e WHERE e.empSalary > :salary")
     List<Employee> findBySalaryGreaterThan(@Param("salary") Long salary);
 
-    // Native SQL Query
-    @Query(value = "SELECT * FROM Employee  WHERE emp_salary > :salary", nativeQuery = true)
+    /** Native SQL: same filter using the fully-qualified schema.table reference. */
+    @Query(value = "SELECT * FROM company.employee WHERE emp_salary > :salary", nativeQuery = true)
     List<Employee> findBySalaryGreaterThanNative(@Param("salary") Long salary);
 
     @Modifying

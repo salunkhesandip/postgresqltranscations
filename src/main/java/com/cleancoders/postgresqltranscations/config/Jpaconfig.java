@@ -1,8 +1,6 @@
 package com.cleancoders.postgresqltranscations.config;
 
-
 import jakarta.persistence.EntityManagerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -20,9 +18,14 @@ import javax.sql.DataSource;
 @Configuration
 @EnableTransactionManagement
 @EnableJpaRepositories(basePackages = "com.cleancoders.postgresqltranscations.repository")
-public class Jpaconfig {
-    @Autowired
-    private Environment env;
+public class JpaConfig {
+
+    private final Environment env;
+
+    // Constructor injection — no field-level @Autowired
+    public JpaConfig(Environment env) {
+        this.env = env;
+    }
 
     @Bean
     public DataSource dataSource() {
@@ -33,11 +36,14 @@ public class Jpaconfig {
         dataSource.setPassword(env.getProperty("spring.datasource.password"));
         return dataSource;
     }
+
     @Bean
     public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
         HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         vendorAdapter.setDatabase(Database.POSTGRESQL);
-        vendorAdapter.setGenerateDdl(true);
+        // DDL generation is controlled by spring.jpa.hibernate.ddl-auto in application.yml;
+        // disabling it here avoids double-application on startup.
+        vendorAdapter.setGenerateDdl(false);
         LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
         em.setDataSource(dataSource());
         em.setPackagesToScan("com.cleancoders.postgresqltranscations.entity");
