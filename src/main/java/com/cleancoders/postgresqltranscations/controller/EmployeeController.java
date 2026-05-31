@@ -1,13 +1,15 @@
 package com.cleancoders.postgresqltranscations.controller;
 
 import com.cleancoders.postgresqltranscations.dto.EmployeeDTO;
-import com.cleancoders.postgresqltranscations.entity.Employee;
 import com.cleancoders.postgresqltranscations.service.EmployeeService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.fge.jsonpatch.JsonPatchException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,9 +22,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.validation.Valid;
 import java.util.List;
 
+@Tag(name = "Employee", description = "Employee management API")
 @RestController
 @RequestMapping("/employees")
 public class EmployeeController {
@@ -32,87 +34,84 @@ public class EmployeeController {
         this.employeeService = employeeService;
     }
 
-    @Operation(description = "Create a new Employee")
+    @Operation(summary = "Create a new Employee")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Added Employee"),
+            @ApiResponse(responseCode = "201", description = "Employee created"),
             @ApiResponse(responseCode = "409", description = "Employee already exists")
-    }
-    )
+    })
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<EmployeeDTO> createEmployee(@Valid @RequestBody EmployeeDTO employee) {
-        EmployeeDTO createdEmployeeDTO = employeeService.saveEmployee(employee);
-        return ResponseEntity.ok(createdEmployeeDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.saveEmployee(employee));
     }
 
-    @Operation(description = "Retrieve Employee")
+    @Operation(summary = "Retrieve Employee by ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Employee found"),
-            @ApiResponse(responseCode = "404", description = "Employee doesn't exist")
+            @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<EmployeeDTO>  getEmployee(@PathVariable("id") Long id) {
+    public ResponseEntity<EmployeeDTO> getEmployee(@PathVariable("id") Long id) {
         return ResponseEntity.ok(employeeService.findEmployee(id));
     }
 
-    @Operation(description = "Delete Employee")
+    @Operation(summary = "Delete Employee by ID")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Employee deleted")})
+            @ApiResponse(responseCode = "204", description = "Employee deleted"),
+            @ApiResponse(responseCode = "404", description = "Employee not found")
+    })
     @DeleteMapping(value = "/{id}")
     public ResponseEntity<Void> removeEmployee(@PathVariable("id") Long id) {
         employeeService.deleteEmployee(id);
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(description = "Update Employee")
+    @Operation(summary = "Full update of an Employee")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Employee updated successfully"),
             @ApiResponse(responseCode = "404", description = "Employee not found")
     })
     @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<EmployeeDTO> updateEmployee(@Valid @RequestBody EmployeeDTO employeeDTO) {
-        EmployeeDTO updatedEmployee = employeeService.updateEmployee(employeeDTO);
-        return ResponseEntity.ok(updatedEmployee);
+        return ResponseEntity.ok(employeeService.updateEmployee(employeeDTO));
     }
 
-    @Operation(description = "Partial Update/Patch Employee")
+    @Operation(summary = "Partial update (RFC 6902 JSON Patch) of an Employee")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Employee patched successfully")
+            @ApiResponse(responseCode = "200", description = "Employee patched successfully"),
+            @ApiResponse(responseCode = "404", description = "Employee not found"),
+            @ApiResponse(responseCode = "422", description = "Invalid JSON Patch document")
     })
-    @PatchMapping(value = "/{id}", consumes = "application/json-patch+json")
+    @PatchMapping(value = "/{id}", consumes = "application/json-patch+json", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<EmployeeDTO> patchEmployee(@PathVariable("id") Long id,
-                                                     @RequestBody String jsonPatchRequest) {
-        EmployeeDTO patchedEmployee;
-        try {
-            patchedEmployee = employeeService.patchEmployee(id, jsonPatchRequest);
-        } catch (JsonPatchException | JsonProcessingException e) {
-            return ResponseEntity.internalServerError().build();
-        }
-        return ResponseEntity.ok(patchedEmployee);
+                                                     @RequestBody String jsonPatchRequest)
+            throws JsonPatchException, JsonProcessingException {
+        return ResponseEntity.ok(employeeService.patchEmployee(id, jsonPatchRequest));
     }
 
-    @Operation(description = "Retrieve Employees greater than specified salary")
+    @Operation(summary = "List Employees with salary above threshold (JPQL)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Employees List"),
-            @ApiResponse(responseCode = "404", description = "Employee doesn't exist")
+            @ApiResponse(responseCode = "200", description = "Employee list"),
+            @ApiResponse(responseCode = "404", description = "No employees found")
     })
     @GetMapping(value = "/salary/{salary}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<Employee>> findEmployeesBySalary(@PathVariable("salary") Long salary) {
+    public ResponseEntity<List<EmployeeDTO>> findEmployeesBySalary(@PathVariable("salary") Long salary) {
         return ResponseEntity.ok(employeeService.findEmployeesBySalary(salary));
     }
 
-    @Operation(description = "Retrieve Employees greater than specified salary")
+    @Operation(summary = "List Employees with salary above threshold (native SQL)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Employees List"),
-            @ApiResponse(responseCode = "404", description = "Employee doesn't exist")
+            @ApiResponse(responseCode = "200", description = "Employee list"),
+            @ApiResponse(responseCode = "404", description = "No employees found")
     })
     @GetMapping(value = "/salary/native/{salary}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<Employee>> findEmployeesBySalaryNative(@PathVariable("salary") Long salary) {
+    public ResponseEntity<List<EmployeeDTO>> findEmployeesBySalaryNative(@PathVariable("salary") Long salary) {
         return ResponseEntity.ok(employeeService.findEmployeesBySalaryNative(salary));
     }
 
-    @Operation(description = "Delete Employee having salary greater")
+    @Operation(summary = "Delete Employees with salary above threshold")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Employee deleted")})
+            @ApiResponse(responseCode = "204", description = "Employees deleted")
+    })
     @DeleteMapping(value = "/salary/{salary}")
     public ResponseEntity<Void> deleteEmployeeWithGreaterSalary(@PathVariable("salary") Long salary) {
         employeeService.deleteEmployeeWithGreaterSalary(salary);

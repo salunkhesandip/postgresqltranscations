@@ -24,7 +24,17 @@ logging:
         type.descriptor.sql: TRACE
         orm.jdbc.bind: TRACE
 
-# Resilience4j CircuitBreaker configuration
+# ─── Spring Boot Actuator ──────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, circuitbreakers
+  health:
+    circuitbreakers:
+      enabled: true
+
+# ─── Resilience4j ─────────────────────────────────────────────────────────────
 resilience4j:
   circuitbreaker:
     configs:
@@ -41,17 +51,20 @@ resilience4j:
         eventConsumerBufferSize: 10
         recordExceptions:
           - java.io.IOException
+          - org.springframework.dao.DataAccessException
+          - java.sql.SQLException
         ignoreExceptions:
           - org.springframework.web.client.HttpClientErrorException$NotFound
     instances:
       backendA:
         baseConfig: default
-        # per-instance override example
         slidingWindowSize: 50
         minimumNumberOfCalls: 5
         failureRateThreshold: 40
         waitDurationInOpenState: 15s
         recordExceptions:
+          - org.springframework.dao.DataAccessException
+          - java.sql.SQLException
           - java.net.SocketTimeoutException
       databaseCalls:
         baseConfig: default
@@ -60,3 +73,19 @@ resilience4j:
         minimumNumberOfCalls: 20
         failureRateThreshold: 60
         waitDurationInOpenState: 30s
+        recordExceptions:
+          - org.springframework.dao.DataAccessException
+          - java.sql.SQLException
+          - java.net.SocketTimeoutException
+  retry:
+    instances:
+      databaseCalls:
+        maxAttempts: 3
+        waitDuration: 500ms
+        retryExceptions:
+          - org.springframework.dao.TransientDataAccessException
+          - java.sql.SQLTransientException
+        ignoreExceptions:
+          - com.cleancoders.postgresqltranscations.exception.EmployeeNotFoundException
+          - com.cleancoders.postgresqltranscations.exception.EmployeeConflictException
+          - com.cleancoders.postgresqltranscations.exception.ServiceUnavailableException

@@ -13,6 +13,7 @@ dependencies {
     // -------------------------------------------------------------------------
     implementation libs.springBootStarterDataJpa
     implementation libs.springBootStarterWeb
+    implementation libs.springBootStarterActuator
 
     // -------------------------------------------------------------------------
     // Third-party libraries (versions pinned in gradle/libs.versions.toml)
