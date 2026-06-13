@@ -2,10 +2,10 @@
 
 [versions]
 modelmapper = "3.2.6"
-springdoc = "3.0.0"
+springdoc = "3.0.3"
 json-patch = "1.13"
 postgresql = "42.6.0"
-springboot = "4.0.5"
+springboot = "4.1.0"
 resilience4j = "2.4.0"
 
 [libraries]
