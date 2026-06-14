@@ -2,11 +2,13 @@ package com.cleancoders.postgresqltranscations.dto;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.io.Serializable;
 import java.math.BigDecimal;
 
 public class EmployeeDTO implements Serializable {
     @NotNull
+    @Positive(message = "Employee ID must be a positive number")
     private Long empId;
     @NotEmpty
     private String empName;

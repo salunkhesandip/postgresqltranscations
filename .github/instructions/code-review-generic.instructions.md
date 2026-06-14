@@ -72,7 +72,7 @@ return employeeRepository.findById(id)
 
 Prefer **constructor injection** with `final` fields. Never instantiate Spring-managed beans manually inside a class.
 
-#### ❌ BAD — manual instantiation (current issue in `EmployeeService`)
+#### ❌ BAD — manual instantiation
 ```java
 @Service
 public class EmployeeService {
@@ -106,7 +106,7 @@ Also applies to `EmployeeMapper` — `ModelMapper` must be injected, not newed u
 
 DTOs are the API contract. JPA annotations (`@Entity`, `@Id`, `@Column`) belong **only** on entities.
 
-#### ❌ BAD — JPA annotation in DTO (current issue in `EmployeeDTO`)
+#### ❌ BAD — JPA annotation in DTO
 ```java
 public class EmployeeDTO implements Serializable {
     @Id               // JPA annotation has no meaning here
@@ -114,7 +114,7 @@ public class EmployeeDTO implements Serializable {
 }
 ```
 
-#### ✅ GOOD — use validation annotations only
+#### ✅ GOOD — use validation annotations only, `empSalary` as `BigDecimal`
 ```java
 public class EmployeeDTO implements Serializable {
     @NotNull
@@ -125,7 +125,7 @@ public class EmployeeDTO implements Serializable {
     private String empName;
 
     @NotNull
-    private Long empSalary;
+    private BigDecimal empSalary; // must match entity field type
 }
 ```
 
@@ -141,7 +141,7 @@ public class EmployeeDTO implements Serializable {
 | PATCH | 200 OK | |
 | DELETE | 204 No Content | `ResponseEntity.noContent().build()` |
 
-#### ❌ BAD — POST returns 200 (current issue in `EmployeeController`)
+#### ❌ BAD — POST returns 200
 ```java
 @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 public ResponseEntity<EmployeeDTO> createEmployee(@Valid @RequestBody EmployeeDTO employee) {
@@ -164,7 +164,7 @@ public ResponseEntity<EmployeeDTO> createEmployee(@Valid @RequestBody EmployeeDT
 
 Never swallow exceptions or return a generic 500 without surfacing the cause. Delegate handling to `GlobalExceptionHandler`.
 
-#### ❌ BAD — exception silenced in `EmployeeController.patchEmployee`
+#### ❌ BAD — exception silenced
 ```java
 try {
     patchedEmployee = employeeService.patchEmployee(id, jsonPatchRequest);
@@ -200,7 +200,7 @@ protected ResponseEntity<Object> handleBadRequest(IllegalArgumentException ex) {
 - Read-only queries must use `@Transactional(readOnly = true)`
 - Preserve audit fields (`empCreatedDate`) — never overwrite them on update
 
-#### ❌ BAD — creation date overwritten on update (current bug in `EmployeeService.updateEmployee`)
+#### ❌ BAD — creation date overwritten on update
 ```java
 @Transactional
 public EmployeeDTO updateEmployee(EmployeeDTO employeeDTO) {
@@ -235,7 +235,7 @@ public EmployeeDTO updateEmployee(EmployeeDTO employeeDTO) {
 
 Do not re-declare methods already provided by `JpaRepository<Employee, Long>`.
 
-#### ❌ BAD — redundant method declaration (current issue in `EmployeeRepository`)
+#### ❌ BAD — redundant method declaration
 ```java
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
@@ -254,11 +254,82 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
 ---
 
+## DataSource & Connection Pooling
+
+Always use `HikariDataSource` (included via `spring-boot-starter-data-jpa`). Never use `DriverManagerDataSource` — it opens a new physical JDBC connection on every request with no pooling.
+
+#### ❌ BAD — no connection pool
+```java
+@Bean
+public DataSource dataSource() {
+    DriverManagerDataSource ds = new DriverManagerDataSource();
+    ds.setUrl(env.getProperty("spring.datasource.url"));
+    return ds;
+}
+```
+
+#### ✅ GOOD — HikariCP pool
+```java
+@Bean
+public DataSource dataSource() {
+    HikariDataSource ds = new HikariDataSource();
+    ds.setDriverClassName("org.postgresql.Driver");
+    ds.setJdbcUrl(env.getProperty("spring.datasource.url"));
+    ds.setUsername(env.getProperty("spring.datasource.username"));
+    ds.setPassword(env.getProperty("spring.datasource.password"));
+    return ds;
+}
+```
+
+---
+
+## JPA DDL Auto Configuration
+
+`spring.jpa.hibernate.ddl-auto` must be `validate` (or `none`) in the default/production profile. Use `update` or `create-drop` only in a dev-specific profile (`application-dev.yml`). `update` can silently corrupt a production schema on deployment.
+
+#### ❌ BAD — `application.yml` (all environments)
+```yaml
+jpa:
+  hibernate:
+    ddl-auto: update
+```
+
+#### ✅ GOOD
+```yaml
+# application.yml (production default)
+jpa:
+  hibernate:
+    ddl-auto: validate
+
+# application-dev.yml (dev only)
+jpa:
+  hibernate:
+    ddl-auto: update
+```
+
+---
+
+## Type Consistency — Salary Parameters
+
+All salary-related query parameters (repository `@Query`, service method signatures, controller `@PathVariable`) must use `BigDecimal` to match the `Employee.empSalary` entity field. Using `Long` causes an implicit type coercion at the Hibernate level and breaks type safety.
+
+#### ❌ BAD — `Long` parameter against a `BigDecimal` column
+```java
+List<Employee> findBySalaryGreaterThan(@Param("salary") Long salary);
+```
+
+#### ✅ GOOD — matching type
+```java
+List<Employee> findBySalaryGreaterThan(@Param("salary") BigDecimal salary);
+```
+
+---
+
 ## Spring Component Annotations
 
 Use `@Component` for infrastructure helpers (mappers, converters). `@Service` implies business logic.
 
-#### ❌ BAD — `@Service` on a mapper (current issue in `EmployeeMapper`)
+#### ❌ BAD — `@Service` on a mapper
 ```java
 @Service  // misleading — EmployeeMapper has no business logic
 public class EmployeeMapper { ... }
@@ -277,7 +348,7 @@ public class EmployeeMapper { ... }
 ### Service Tests
 Use `@ExtendWith(MockitoExtension.class)` — no Spring context needed.
 
-#### ❌ BAD — missing assertions (current pattern in `EmployeeServiceTest`)
+#### ❌ BAD — missing assertions
 ```java
 @Test
 void Given_EmployeeDTO_SaveEmployee_SavedEmployee() {
@@ -308,7 +379,7 @@ void Given_NewEmployee_When_SaveEmployee_Then_ReturnsPersistedDTO() {
 ### Controller Tests
 Use `@WebMvcTest` — loads only the web layer. Mock the service with `@MockitoBean`.
 
-#### ❌ BAD — wrong status assertion (current issue in `EmployeeControllerTest`)
+#### ❌ BAD — wrong status assertion
 ```java
 @Test
 void Given_NotExistingEmployee_When_CreateEmployee_Then_SuccessResponse() throws Exception {
@@ -351,7 +422,7 @@ Follow **Given_Precondition_When_StateUnderTest_Then_ExpectedBehavior** consiste
 
 Every endpoint must have `@Operation` and `@ApiResponses` with status codes that match the actual implementation.
 
-#### ❌ BAD — docs say 200 but implementation returns 201 (current issue in `EmployeeController`)
+#### ❌ BAD — docs say 200 but implementation returns 201
 ```java
 @ApiResponse(responseCode = "200", description = "Added Employee")
 @PostMapping(...)
@@ -377,14 +448,22 @@ public ResponseEntity<EmployeeDTO> createEmployee(...) { ... }
 - [ ] No manual `new ObjectMapper()` or `new ModelMapper()` — use Spring beans
 - [ ] `Optional` used with `orElseThrow()`, not `isPresent()` + `get()`
 - [ ] No JPA annotations in DTO classes
+- [ ] `empId` in DTO annotated with both `@NotNull` and `@Positive`
+- [ ] Salary fields (`empSalary`) use `BigDecimal` throughout entity, DTO, repository, service, and controller — never `double`/`float`/`Long`
 - [ ] Copy constructors and object creation are correct (no self-assignment bugs)
 - [ ] No redundant repository method declarations
 - [ ] `@Component` used for mappers, `@Service` for business logic only
+- [ ] Java class filename matches public class name exactly (e.g. `JpaConfig.java` not `Jpaconfig.java`)
 
 ### REST API
 - [ ] POST → 201, DELETE → 204, GET → 200/404, PUT/PATCH → 200
 - [ ] `@Valid` on all `@RequestBody` parameters
 - [ ] OpenAPI `@ApiResponse` codes match actual response codes
+
+### DataSource & JPA Config
+- [ ] `DataSource` bean uses `HikariDataSource` — not `DriverManagerDataSource`
+- [ ] `spring.jpa.hibernate.ddl-auto` is `validate` (or `none`) in default profile
+- [ ] `ddl-auto: update`/`create-drop` confined to dev-only profile
 
 ### Transactions & Data Integrity
 - [ ] `@Transactional` on service methods only
@@ -400,8 +479,9 @@ public ResponseEntity<EmployeeDTO> createEmployee(...) { ... }
 ### Testing
 - [ ] Service tests use `@ExtendWith(MockitoExtension.class)` — no Spring context
 - [ ] Controller tests use `@WebMvcTest`
-- [ ] Every test has at least one specific assertion
-- [ ] Test names follow `Given_X_When_Y_Then_Z` pattern
+- [ ] Every test has at least one specific assertion (including patch/update tests)
+- [ ] Test names follow `Given_X_When_Y_Then_Z` pattern (including fallback tests)
+- [ ] Comments in service code match actual Resilience4j config values (e.g. `failureRateThreshold`)
 
 ### Build
 - [ ] New dependencies added to `gradle/libs.versions.toml`, not hardcoded in `dependencies.gradle`

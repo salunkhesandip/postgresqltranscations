@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Tag(name = "Employee", description = "Employee management API")
@@ -94,7 +95,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "No employees found")
     })
     @GetMapping(value = "/salary/{salary}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<EmployeeDTO>> findEmployeesBySalary(@PathVariable("salary") Long salary) {
+    public ResponseEntity<List<EmployeeDTO>> findEmployeesBySalary(@PathVariable("salary") BigDecimal salary) {
         return ResponseEntity.ok(employeeService.findEmployeesBySalary(salary));
     }
 
@@ -104,7 +105,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "404", description = "No employees found")
     })
     @GetMapping(value = "/salary/native/{salary}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<EmployeeDTO>> findEmployeesBySalaryNative(@PathVariable("salary") Long salary) {
+    public ResponseEntity<List<EmployeeDTO>> findEmployeesBySalaryNative(@PathVariable("salary") BigDecimal salary) {
         return ResponseEntity.ok(employeeService.findEmployeesBySalaryNative(salary));
     }
 
@@ -113,7 +114,7 @@ public class EmployeeController {
             @ApiResponse(responseCode = "204", description = "Employees deleted")
     })
     @DeleteMapping(value = "/salary/{salary}")
-    public ResponseEntity<Void> deleteEmployeeWithGreaterSalary(@PathVariable("salary") Long salary) {
+    public ResponseEntity<Void> deleteEmployeeWithGreaterSalary(@PathVariable("salary") BigDecimal salary) {
         employeeService.deleteEmployeeWithGreaterSalary(salary);
         return ResponseEntity.noContent().build();
     }

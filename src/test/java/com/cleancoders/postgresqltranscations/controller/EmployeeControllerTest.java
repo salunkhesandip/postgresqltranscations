@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static com.cleancoders.postgresqltranscations.constants.EmployeeConstTest.TEST_EMPLOYEE_ID;
@@ -204,7 +205,7 @@ class EmployeeControllerTest {
 
     @Test
     void Given_Salary_When_FindBySalary_Then_200Response() throws Exception {
-        given(employeeService.findEmployeesBySalary(anyLong()))
+        given(employeeService.findEmployeesBySalary(any(BigDecimal.class)))
                 .willReturn(List.of(createEmployeeDTO()));
         mockMvc.perform(get("/employees/salary/" + TEST_EMPLOYEE_SALARY.longValue()))
                 .andExpect(status().isOk());
@@ -212,7 +213,7 @@ class EmployeeControllerTest {
 
     @Test
     void Given_Salary_When_FindBySalaryNative_Then_200Response() throws Exception {
-        given(employeeService.findEmployeesBySalaryNative(anyLong()))
+        given(employeeService.findEmployeesBySalaryNative(any(BigDecimal.class)))
                 .willReturn(List.of(createEmployeeDTO()));
         mockMvc.perform(get("/employees/salary/native/" + TEST_EMPLOYEE_SALARY.longValue()))
                 .andExpect(status().isOk());

@@ -17,6 +17,7 @@ import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -36,7 +37,7 @@ public class EmployeeService {
     }
 
     // -------------------------------------------------------------------------
-    // Write operations — guarded by backendA (COUNT_BASED, 40% threshold)
+    // Write operations — guarded by backendA (COUNT_BASED, 50% threshold)
     // -------------------------------------------------------------------------
 
     @CircuitBreaker(name = "backendA", fallbackMethod = "saveEmployeeFallback")
@@ -82,7 +83,7 @@ public class EmployeeService {
 
     @CircuitBreaker(name = "backendA", fallbackMethod = "deleteEmployeeWithGreaterSalaryFallback")
     @Transactional
-    public void deleteEmployeeWithGreaterSalary(Long salary) {
+    public void deleteEmployeeWithGreaterSalary(BigDecimal salary) {
         employeeRepository.deleteUsersBySalaryGreater(salary);
     }
 
@@ -102,7 +103,7 @@ public class EmployeeService {
     @Retry(name = "databaseCalls")
     @CircuitBreaker(name = "databaseCalls", fallbackMethod = "findEmployeesBySalaryFallback")
     @Transactional(readOnly = true)
-    public List<EmployeeDTO> findEmployeesBySalary(Long salary) {
+    public List<EmployeeDTO> findEmployeesBySalary(BigDecimal salary) {
         List<Employee> employees = employeeRepository.findBySalaryGreaterThan(salary);
         if (employees.isEmpty()) {
             throw new EmployeeNotFoundException("No employees found with salary above " + salary);
@@ -113,7 +114,7 @@ public class EmployeeService {
     @Retry(name = "databaseCalls")
     @CircuitBreaker(name = "databaseCalls", fallbackMethod = "findEmployeesBySalaryNativeFallback")
     @Transactional(readOnly = true)
-    public List<EmployeeDTO> findEmployeesBySalaryNative(Long salary) {
+    public List<EmployeeDTO> findEmployeesBySalaryNative(BigDecimal salary) {
         List<Employee> employees = employeeRepository.findBySalaryGreaterThanNative(salary);
         if (employees.isEmpty()) {
             throw new EmployeeNotFoundException("No employees found with salary above " + salary);
@@ -147,7 +148,7 @@ public class EmployeeService {
                 "Employee delete temporarily unavailable. id=" + id, t);
     }
 
-    void deleteEmployeeWithGreaterSalaryFallback(Long salary, Throwable t) {
+    void deleteEmployeeWithGreaterSalaryFallback(BigDecimal salary, Throwable t) {
         throw new ServiceUnavailableException(
                 "Bulk delete temporarily unavailable. salary=" + salary, t);
     }
@@ -157,12 +158,12 @@ public class EmployeeService {
                 "Employee lookup temporarily unavailable. id=" + id, t);
     }
 
-    List<EmployeeDTO> findEmployeesBySalaryFallback(Long salary, Throwable t) {
+    List<EmployeeDTO> findEmployeesBySalaryFallback(BigDecimal salary, Throwable t) {
         throw new ServiceUnavailableException(
                 "Salary lookup temporarily unavailable. salary=" + salary, t);
     }
 
-    List<EmployeeDTO> findEmployeesBySalaryNativeFallback(Long salary, Throwable t) {
+    List<EmployeeDTO> findEmployeesBySalaryNativeFallback(BigDecimal salary, Throwable t) {
         throw new ServiceUnavailableException(
                 "Salary lookup (native) temporarily unavailable. salary=" + salary, t);
     }

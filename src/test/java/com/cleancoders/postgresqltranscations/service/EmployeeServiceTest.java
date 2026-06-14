@@ -25,6 +25,7 @@ import static com.cleancoders.postgresqltranscations.constants.EmployeeConstTest
 import static com.cleancoders.postgresqltranscations.constants.EmployeeConstTest.TEST_EMPLOYEE_SALARY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -149,8 +150,11 @@ class EmployeeServiceTest {
         given(employeeRepository.save(any(Employee.class))).willReturn(createEmployee());
         given(mapper.convertToEmployeeDTO(any(Employee.class))).willReturn(employeeDTO);
 
-        spy.patchEmployee(TEST_EMPLOYEE_ID, """
+        EmployeeDTO result = spy.patchEmployee(TEST_EMPLOYEE_ID, """
                 [{"op":"replace","path":"/empName","value":"Sandip Salunkhe"}]""");
+
+        assertNotNull(result);
+        assertEquals(TEST_EMPLOYEE_NAME, result.getEmpName());
     }
 
     // -------------------------------------------------------------------------
@@ -158,7 +162,7 @@ class EmployeeServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void saveEmployeeFallback_throwsServiceUnavailable() {
+    void Given_DBDown_When_SaveEmployeeFallback_Then_ServiceUnavailableException() {
         var cause = new RuntimeException("DB down");
         assertThatThrownBy(() -> employeeService.saveEmployeeFallback(employeeDTO, cause))
                 .isInstanceOf(ServiceUnavailableException.class)
@@ -166,7 +170,7 @@ class EmployeeServiceTest {
     }
 
     @Test
-    void findEmployeeFallback_throwsServiceUnavailable() {
+    void Given_DBDown_When_FindEmployeeFallback_Then_ServiceUnavailableException() {
         var cause = new RuntimeException("DB down");
         assertThatThrownBy(() -> employeeService.findEmployeeFallback(TEST_EMPLOYEE_ID, cause))
                 .isInstanceOf(ServiceUnavailableException.class)
@@ -174,7 +178,7 @@ class EmployeeServiceTest {
     }
 
     @Test
-    void updateEmployeeFallback_throwsServiceUnavailable() {
+    void Given_DBDown_When_UpdateEmployeeFallback_Then_ServiceUnavailableException() {
         var cause = new RuntimeException("DB down");
         assertThatThrownBy(() -> employeeService.updateEmployeeFallback(employeeDTO, cause))
                 .isInstanceOf(ServiceUnavailableException.class)
@@ -182,7 +186,7 @@ class EmployeeServiceTest {
     }
 
     @Test
-    void deleteEmployeeFallback_throwsServiceUnavailable() {
+    void Given_DBDown_When_DeleteEmployeeFallback_Then_ServiceUnavailableException() {
         var cause = new RuntimeException("DB down");
         assertThatThrownBy(() -> employeeService.deleteEmployeeFallback(TEST_EMPLOYEE_ID, cause))
                 .isInstanceOf(ServiceUnavailableException.class)
@@ -190,7 +194,7 @@ class EmployeeServiceTest {
     }
 
     @Test
-    void patchEmployeeFallback_throwsServiceUnavailable() {
+    void Given_DBDown_When_PatchEmployeeFallback_Then_ServiceUnavailableException() {
         var cause = new RuntimeException("DB down");
         assertThatThrownBy(() -> employeeService.patchEmployeeFallback(TEST_EMPLOYEE_ID, "[]", cause))
                 .isInstanceOf(ServiceUnavailableException.class)
@@ -198,27 +202,24 @@ class EmployeeServiceTest {
     }
 
     @Test
-    void findEmployeesBySalaryFallback_throwsServiceUnavailable() {
-        Long testSalary = TEST_EMPLOYEE_SALARY.longValue();
-        assertThatThrownBy(() -> employeeService.findEmployeesBySalaryFallback(testSalary, new RuntimeException()))
+    void Given_DBDown_When_FindEmployeesBySalaryFallback_Then_ServiceUnavailableException() {
+        assertThatThrownBy(() -> employeeService.findEmployeesBySalaryFallback(TEST_EMPLOYEE_SALARY, new RuntimeException()))
                 .isInstanceOf(ServiceUnavailableException.class)
-                .hasMessageContaining(String.valueOf(testSalary));
+                .hasMessageContaining(TEST_EMPLOYEE_SALARY.toPlainString());
     }
 
     @Test
-    void findEmployeesBySalaryNativeFallback_throwsServiceUnavailable() {
-        Long testSalary = TEST_EMPLOYEE_SALARY.longValue();
-        assertThatThrownBy(() -> employeeService.findEmployeesBySalaryNativeFallback(testSalary, new RuntimeException()))
+    void Given_DBDown_When_FindEmployeesBySalaryNativeFallback_Then_ServiceUnavailableException() {
+        assertThatThrownBy(() -> employeeService.findEmployeesBySalaryNativeFallback(TEST_EMPLOYEE_SALARY, new RuntimeException()))
                 .isInstanceOf(ServiceUnavailableException.class)
-                .hasMessageContaining(String.valueOf(testSalary));
+                .hasMessageContaining(TEST_EMPLOYEE_SALARY.toPlainString());
     }
 
     @Test
-    void deleteEmployeeWithGreaterSalaryFallback_throwsServiceUnavailable() {
-        Long testSalary = TEST_EMPLOYEE_SALARY.longValue();
-        assertThatThrownBy(() -> employeeService.deleteEmployeeWithGreaterSalaryFallback(testSalary, new RuntimeException()))
+    void Given_DBDown_When_DeleteEmployeeWithGreaterSalaryFallback_Then_ServiceUnavailableException() {
+        assertThatThrownBy(() -> employeeService.deleteEmployeeWithGreaterSalaryFallback(TEST_EMPLOYEE_SALARY, new RuntimeException()))
                 .isInstanceOf(ServiceUnavailableException.class)
-                .hasMessageContaining(String.valueOf(testSalary));
+                .hasMessageContaining(TEST_EMPLOYEE_SALARY.toPlainString());
     }
 
     // -------------------------------------------------------------------------
