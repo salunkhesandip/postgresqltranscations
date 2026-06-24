@@ -37,3 +37,20 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Environment and Secrets ###
+.env
+.env.*
+!.env.example
+*.log
+*.log.*
+
+### OS Files ###
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+
+### JaCoCo Coverage Reports ###
+.jacocoCoverage/
+

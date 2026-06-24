@@ -1,12 +1,15 @@
 package com.cleancoders.postgresqltranscations.service;
 
 import com.cleancoders.postgresqltranscations.dto.EmployeeDTO;
+import com.cleancoders.postgresqltranscations.dto.EmployeeSearchCriteria;
+import com.cleancoders.postgresqltranscations.dto.PagedEmployeeResponse;
 import com.cleancoders.postgresqltranscations.entity.Employee;
 import com.cleancoders.postgresqltranscations.exception.EmployeeConflictException;
 import com.cleancoders.postgresqltranscations.exception.EmployeeNotFoundException;
 import com.cleancoders.postgresqltranscations.exception.ServiceUnavailableException;
 import com.cleancoders.postgresqltranscations.mapper.EmployeeMapper;
 import com.cleancoders.postgresqltranscations.repository.EmployeeRepository;
+import com.cleancoders.postgresqltranscations.specification.EmployeeSpecification;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,13 +17,16 @@ import com.github.fge.jsonpatch.JsonPatch;
 import com.github.fge.jsonpatch.JsonPatchException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class EmployeeService {
@@ -122,6 +128,48 @@ public class EmployeeService {
         return employees.stream().map(mapper::convertToEmployeeDTO).toList();
     }
 
+    /**
+     * Search employees with dynamic filtering and pagination.
+     * Supports filtering by name (partial, case-insensitive), salary range, and creation date range.
+     * User Stories 1-5 implementation.
+     */
+    @Retry(name = "databaseCalls")
+    @CircuitBreaker(name = "databaseCalls", fallbackMethod = "searchEmployeesFallback")
+    @Transactional(readOnly = true)
+    public PagedEmployeeResponse searchEmployees(EmployeeSearchCriteria criteria) {
+        // Build specification dynamically based on provided filters
+        Specification<Employee> spec = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
+
+        // US2: Name filter (case-insensitive partial match)
+        if (criteria.getName() != null && !criteria.getName().isBlank()) {
+            spec = spec.and(EmployeeSpecification.hasName(criteria.getName()));
+        }
+
+        // US3: Salary range filter
+        if (criteria.getMinSalary() != null || criteria.getMaxSalary() != null) {
+            spec = spec.and(EmployeeSpecification.hasSalaryBetween(
+                criteria.getMinSalary(), criteria.getMaxSalary()));
+        }
+
+        // US4: Creation date range filter
+        if (criteria.getCreatedAfter() != null || criteria.getCreatedBefore() != null) {
+            spec = spec.and(EmployeeSpecification.hasCreatedDateBetween(
+                criteria.getCreatedAfter(), criteria.getCreatedBefore()));
+        }
+
+        // US1: Pagination
+        Pageable pageable = PageRequest.of(criteria.getPage(), criteria.getSize());
+
+        // Execute query
+        Page<Employee> page = employeeRepository.findAll(spec, pageable);
+
+        // Map entities to DTOs
+        Page<EmployeeDTO> dtoPage = page.map(mapper::convertToEmployeeDTO);
+
+        // Return paginated response
+        return PagedEmployeeResponse.fromPage(dtoPage);
+    }
+
     // -------------------------------------------------------------------------
     // Circuit-breaker fallback methods
     // Package-private so they are directly testable from the same package.
@@ -166,6 +214,11 @@ public class EmployeeService {
     List<EmployeeDTO> findEmployeesBySalaryNativeFallback(BigDecimal salary, Throwable t) {
         throw new ServiceUnavailableException(
                 "Salary lookup (native) temporarily unavailable. salary=" + salary, t);
+    }
+
+    PagedEmployeeResponse searchEmployeesFallback(EmployeeSearchCriteria criteria, Throwable t) {
+        throw new ServiceUnavailableException(
+                "Employee search temporarily unavailable. criteria=" + criteria, t);
     }
 
     // -------------------------------------------------------------------------

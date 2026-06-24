@@ -5,6 +5,9 @@
 Instructions for AI coding agents working in this repository.
 Read this file first on every session before touching any source file.
 
+**Constitution**: All development must comply with `.specify/memory/constitution.md`.
+Key principles: Layered Architecture, Transaction Boundaries, Test-First with Coverage, SOLID, and Resilience patterns.
+
 ---
 
 ## Stack
@@ -94,10 +97,18 @@ src/main/java/com/cleancoders/postgresqltranscations/
 
 ## Conventions
 
+**Constitution Compliance** (see `.specify/memory/constitution.md` for full details):
+
+- **Layered Architecture**: Controller → Service → Repository. No business logic in controllers or entities.
+- **Transaction Boundaries**: All mutating service methods MUST be `@Transactional`; reads use `@Transactional(readOnly = true)`.
+- **DTO/Entity Separation**: Controllers expose DTOs only, never entities.
+- **Test-First**: Write tests before implementation, verify they fail (Red), then implement (Green), then refactor.
+- **Resilience Patterns**: Circuit breakers configured for service operations; fallback methods throw `ServiceUnavailableException`.
+- **Error Handling**: Throw domain exceptions (`EmployeeNotFoundException`, `EmployeeConflictException`); never return `null`.
+
+**Code Standards**:
+
 - Package root: `com.cleancoders.postgresqltranscations` — never change this.
-- Preserve the layered structure above; do not put business logic in controllers or entities.
-- All mutating service methods must be `@Transactional`; reads use `@Transactional(readOnly = true)`.
-- Throw domain exceptions (`EmployeeNotFoundException`, `EmployeeConflictException`); never return `null`.
 - Use Gradle Version Catalog (`libs.versions.toml`) for all dependency versions — no inline version strings in `build.gradle`.
 - Column names are `snake_case`; Java fields are `camelCase` — always declare `@Column(name = "...")`.
 - Controllers must be annotated with `@Tag` and `@Operation` for OpenAPI docs.
@@ -121,8 +132,18 @@ When the skill applies, load the relevant reference file from
 
 ## References
 
+- [.specify/memory/constitution.md](.specify/memory/constitution.md) — **Project Constitution** (MUST READ)
 - [README.md](README.md) — full feature walkthrough
 - [build.gradle](build.gradle) — plugin and task config
 - [gradle/libs.versions.toml](gradle/libs.versions.toml) — all dependency versions
 - [gradle/dependencies.gradle](gradle/dependencies.gradle) — dependency declarations
 - [src/main/resources/application.yml](src/main/resources/application.yml) — DB + Resilience4j config
+
+---
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+at specs/001-employee-search-endpoint/tasks.md
+<!-- SPECKIT END -->
+

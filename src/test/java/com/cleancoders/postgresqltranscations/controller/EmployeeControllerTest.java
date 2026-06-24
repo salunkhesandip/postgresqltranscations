@@ -49,7 +49,7 @@ class EmployeeControllerTest {
     @Test
     void Given_EmployeeId_When_GetEmployee_Then_SuccessResponse() throws Exception {
         given(employeeService.findEmployee(TEST_EMPLOYEE_ID)).willReturn(createEmployeeDTO());
-        mockMvc.perform(get("/employees/" + TEST_EMPLOYEE_ID))
+        mockMvc.perform(get("/api/employees/" + TEST_EMPLOYEE_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.empId").value(TEST_EMPLOYEE_ID))
                 .andExpect(jsonPath("$.empName").value(TEST_EMPLOYEE_NAME));
@@ -58,7 +58,7 @@ class EmployeeControllerTest {
     @Test
     void Given_EmployeeId_When_GetEmployee_Then_404Response() throws Exception {
         given(employeeService.findEmployee(anyLong())).willThrow(new EmployeeNotFoundException("not found"));
-        mockMvc.perform(get("/employees/" + TEST_EMPLOYEE_ID))
+        mockMvc.perform(get("/api/employees/" + TEST_EMPLOYEE_ID))
                 .andExpect(status().isNotFound());
     }
 
@@ -71,7 +71,7 @@ class EmployeeControllerTest {
         EmployeeDTO employeeDTO = createEmployeeDTO();
         given(employeeService.saveEmployee(any(EmployeeDTO.class))).willReturn(employeeDTO);
 
-        mockMvc.perform(post("/employees")
+        mockMvc.perform(post("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .content(mapper.writeValueAsString(employeeDTO)))
                 .andExpect(status().isCreated())
@@ -83,7 +83,7 @@ class EmployeeControllerTest {
         given(employeeService.saveEmployee(any(EmployeeDTO.class)))
                 .willThrow(new EmployeeConflictException("conflict"));
 
-        mockMvc.perform(post("/employees")
+        mockMvc.perform(post("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .content(mapper.writeValueAsString(createEmployeeDTO())))
                 .andExpect(status().isConflict());
@@ -98,7 +98,7 @@ class EmployeeControllerTest {
         EmployeeDTO employeeDTO = createEmployeeDTO();
         given(employeeService.updateEmployee(any(EmployeeDTO.class))).willReturn(employeeDTO);
 
-        mockMvc.perform(put("/employees")
+        mockMvc.perform(put("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .content(mapper.writeValueAsString(employeeDTO)))
                 .andExpect(status().isOk());
@@ -109,7 +109,7 @@ class EmployeeControllerTest {
         given(employeeService.updateEmployee(any(EmployeeDTO.class)))
                 .willThrow(new EmployeeNotFoundException("not found"));
 
-        mockMvc.perform(put("/employees")
+        mockMvc.perform(put("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .content(mapper.writeValueAsString(createEmployeeDTO())))
                 .andExpect(status().isNotFound());
@@ -121,7 +121,7 @@ class EmployeeControllerTest {
 
     @Test
     void Given_EmployeeId_When_DeleteEmployee_Then_204Response() throws Exception {
-        mockMvc.perform(delete("/employees/" + TEST_EMPLOYEE_ID))
+        mockMvc.perform(delete("/api/employees/" + TEST_EMPLOYEE_ID))
                 .andExpect(status().isNoContent());
     }
 
@@ -129,7 +129,7 @@ class EmployeeControllerTest {
     void Given_EmployeeNotExist_When_DeleteEmployee_Then_404Response() throws Exception {
         org.mockito.Mockito.doThrow(new EmployeeNotFoundException("not found"))
                 .when(employeeService).deleteEmployee(anyLong());
-        mockMvc.perform(delete("/employees/" + TEST_EMPLOYEE_ID))
+        mockMvc.perform(delete("/api/employees/" + TEST_EMPLOYEE_ID))
                 .andExpect(status().isNotFound());
     }
 
@@ -142,7 +142,7 @@ class EmployeeControllerTest {
         given(employeeService.patchEmployee(anyLong(), any(String.class)))
                 .willReturn(createEmployeeDTO());
 
-        mockMvc.perform(patch("/employees/" + TEST_EMPLOYEE_ID)
+        mockMvc.perform(patch("/api/employees/" + TEST_EMPLOYEE_ID)
                         .contentType("application/json-patch+json")
                         .content(patchBody()))
                 .andExpect(status().isOk());
@@ -153,7 +153,7 @@ class EmployeeControllerTest {
         given(employeeService.patchEmployee(anyLong(), any(String.class)))
                 .willThrow(new JsonPatchException("bad patch"));
 
-        mockMvc.perform(patch("/employees/" + TEST_EMPLOYEE_ID)
+        mockMvc.perform(patch("/api/employees/" + TEST_EMPLOYEE_ID)
                         .contentType("application/json-patch+json")
                         .content(patchBody()))
                 .andExpect(status().isUnprocessableEntity());
@@ -167,7 +167,7 @@ class EmployeeControllerTest {
     void Given_CircuitOpen_When_GetEmployee_Then_503Response() throws Exception {
         given(employeeService.findEmployee(anyLong()))
                 .willThrow(new ServiceUnavailableException("temporarily unavailable"));
-        mockMvc.perform(get("/employees/" + TEST_EMPLOYEE_ID))
+        mockMvc.perform(get("/api/employees/" + TEST_EMPLOYEE_ID))
                 .andExpect(status().isServiceUnavailable());
     }
 
@@ -175,7 +175,7 @@ class EmployeeControllerTest {
     void Given_CircuitOpen_When_CreateEmployee_Then_503Response() throws Exception {
         given(employeeService.saveEmployee(any(EmployeeDTO.class)))
                 .willThrow(new ServiceUnavailableException("temporarily unavailable"));
-        mockMvc.perform(post("/employees")
+        mockMvc.perform(post("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .content(mapper.writeValueAsString(createEmployeeDTO())))
                 .andExpect(status().isServiceUnavailable());
@@ -185,7 +185,7 @@ class EmployeeControllerTest {
     void Given_CircuitOpen_When_UpdateEmployee_Then_503Response() throws Exception {
         given(employeeService.updateEmployee(any(EmployeeDTO.class)))
                 .willThrow(new ServiceUnavailableException("temporarily unavailable"));
-        mockMvc.perform(put("/employees")
+        mockMvc.perform(put("/api/employees")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .content(mapper.writeValueAsString(createEmployeeDTO())))
                 .andExpect(status().isServiceUnavailable());
@@ -195,7 +195,7 @@ class EmployeeControllerTest {
     void Given_CircuitOpen_When_DeleteEmployee_Then_503Response() throws Exception {
         org.mockito.Mockito.doThrow(new ServiceUnavailableException("temporarily unavailable"))
                 .when(employeeService).deleteEmployee(anyLong());
-        mockMvc.perform(delete("/employees/" + TEST_EMPLOYEE_ID))
+        mockMvc.perform(delete("/api/employees/" + TEST_EMPLOYEE_ID))
                 .andExpect(status().isServiceUnavailable());
     }
 
@@ -207,7 +207,7 @@ class EmployeeControllerTest {
     void Given_Salary_When_FindBySalary_Then_200Response() throws Exception {
         given(employeeService.findEmployeesBySalary(any(BigDecimal.class)))
                 .willReturn(List.of(createEmployeeDTO()));
-        mockMvc.perform(get("/employees/salary/" + TEST_EMPLOYEE_SALARY.longValue()))
+        mockMvc.perform(get("/api/employees/salary/" + TEST_EMPLOYEE_SALARY.longValue()))
                 .andExpect(status().isOk());
     }
 
@@ -215,7 +215,7 @@ class EmployeeControllerTest {
     void Given_Salary_When_FindBySalaryNative_Then_200Response() throws Exception {
         given(employeeService.findEmployeesBySalaryNative(any(BigDecimal.class)))
                 .willReturn(List.of(createEmployeeDTO()));
-        mockMvc.perform(get("/employees/salary/native/" + TEST_EMPLOYEE_SALARY.longValue()))
+        mockMvc.perform(get("/api/employees/salary/native/" + TEST_EMPLOYEE_SALARY.longValue()))
                 .andExpect(status().isOk());
     }
 

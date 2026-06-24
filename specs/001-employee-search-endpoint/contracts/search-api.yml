@@ -1,0 +1,322 @@
+openapi: 3.0.3
+info:
+  title: Employee Search API
+  description: |
+    Employee search endpoint with dynamic filtering and pagination support.
+    
+    This contract defines the GET /api/employees/search endpoint that allows clients 
+    to search for employees using optional filters (name, salary range, date range) 
+    with paginated results.
+  version: 1.0.0
+  contact:
+    name: Employee Service Team
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development server
+
+paths:
+  /employees/search:
+    get:
+      summary: Search employees with filters and pagination
+      description: |
+        Retrieve a paginated list of employees matching the specified search criteria.
+        All filter parameters are optional and can be combined using AND logic.
+        
+        **Supported Filters**:
+        - Name: Case-insensitive partial match on employee name
+        - Salary Range: Minimum and/or maximum salary bounds (inclusive)
+        - Creation Date Range: Date range for employee record creation
+        
+        **Pagination**:
+        - Default page size: 20
+        - Maximum page size: 100
+        - Pages are zero-indexed (first page = 0)
+        
+        **Circuit Breaker**: This endpoint is protected by the `databaseCalls` circuit breaker
+        with retry logic (3 attempts, 500ms wait). Returns HTTP 503 when circuit is open.
+
+      operationId: searchEmployees
+      tags:
+        - Employee Search
+
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page number
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            default: 0
+          example: 0
+
+        - name: size
+          in: query
+          description: Number of items per page (max 100)
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 10
+
+        - name: name
+          in: query
+          description: |
+            Employee name filter (case-insensitive partial match).
+            Searches for employees whose name contains this substring.
+          required: false
+          schema:
+            type: string
+          example: John
+
+        - name: minSalary
+          in: query
+          description: Minimum salary (inclusive). Must be zero or positive.
+          required: false
+          schema:
+            type: number
+            format: decimal
+            minimum: 0
+          example: 40000.00
+
+        - name: maxSalary
+          in: query
+          description: Maximum salary (inclusive). Must be zero or positive.
+          required: false
+          schema:
+            type: number
+            format: decimal
+            minimum: 0
+          example: 80000.00
+
+        - name: createdAfter
+          in: query
+          description: |
+            Created on or after this date (inclusive).
+            Format: ISO 8601 date (YYYY-MM-DD).
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-01-01"
+
+        - name: createdBefore
+          in: query
+          description: |
+            Created on or before this date (inclusive).
+            Format: ISO 8601 date (YYYY-MM-DD).
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-12-31"
+
+      responses:
+        '200':
+          description: Search completed successfully (even if no results found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedEmployeeResponse'
+              examples:
+                withResults:
+                  summary: Search with results
+                  value:
+                    content:
+                      - empId: 1
+                        empName: John Smith
+                        empSalary: 50000.00
+                        empAddress: Engineering Department
+                        empCreatedDate: "2024-06-15"
+                        empUpdatedDate: "2024-06-15"
+                      - empId: 2
+                        empName: John Doe
+                        empSalary: 60000.00
+                        empAddress: Marketing Department
+                        empCreatedDate: "2024-03-20"
+                        empUpdatedDate: "2024-03-20"
+                    pagination:
+                      totalElements: 25
+                      totalPages: 3
+                      currentPage: 0
+                      pageSize: 10
+                      hasNext: true
+                      hasPrevious: false
+
+                emptyResults:
+                  summary: Search with no results
+                  value:
+                    content: []
+                    pagination:
+                      totalElements: 0
+                      totalPages: 0
+                      currentPage: 0
+                      pageSize: 10
+                      hasNext: false
+                      hasPrevious: false
+
+        '422':
+          description: Validation error (invalid parameters)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidPageSize:
+                  summary: Page size exceeds maximum
+                  value:
+                    message: Validation failed
+                    errors:
+                      - "size: Page size cannot exceed 100"
+                    timestamp: "2025-01-26T10:15:30Z"
+
+                invalidSalaryRange:
+                  summary: Minimum salary greater than maximum
+                  value:
+                    message: Validation failed
+                    errors:
+                      - "Minimum salary must be less than or equal to maximum salary"
+                    timestamp: "2025-01-26T10:15:30Z"
+
+                invalidDateRange:
+                  summary: Created after date is after created before date
+                  value:
+                    message: Validation failed
+                    errors:
+                      - "Created after date must be before or equal to created before date"
+                    timestamp: "2025-01-26T10:15:30Z"
+
+        '503':
+          description: Service unavailable (database circuit breaker open or all retries failed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                message: Employee search temporarily unavailable
+                errors:
+                  - "Database circuit breaker is OPEN"
+                timestamp: "2025-01-26T10:15:30Z"
+
+components:
+  schemas:
+    PagedEmployeeResponse:
+      type: object
+      required:
+        - content
+        - pagination
+      properties:
+        content:
+          type: array
+          description: List of employee DTOs for the current page
+          items:
+            $ref: '#/components/schemas/EmployeeDTO'
+        pagination:
+          $ref: '#/components/schemas/PaginationMetadata'
+
+    EmployeeDTO:
+      type: object
+      required:
+        - empId
+        - empName
+        - empSalary
+      properties:
+        empId:
+          type: integer
+          format: int64
+          description: Unique employee identifier
+          example: 1
+        empName:
+          type: string
+          description: Employee full name
+          example: John Smith
+        empSalary:
+          type: number
+          format: decimal
+          description: Employee salary
+          example: 50000.00
+        empAddress:
+          type: string
+          description: Employee address or department information
+          nullable: true
+          example: Engineering Department
+        empCreatedDate:
+          type: string
+          format: date
+          description: Date when employee record was created
+          nullable: true
+          example: "2024-06-15"
+        empUpdatedDate:
+          type: string
+          format: date
+          description: Date when employee record was last updated
+          nullable: true
+          example: "2024-06-15"
+
+    PaginationMetadata:
+      type: object
+      required:
+        - totalElements
+        - totalPages
+        - currentPage
+        - pageSize
+        - hasNext
+        - hasPrevious
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of employees matching the search criteria
+          example: 25
+        totalPages:
+          type: integer
+          format: int32
+          description: Total number of pages
+          example: 3
+        currentPage:
+          type: integer
+          format: int32
+          description: Current page number (zero-based)
+          example: 0
+        pageSize:
+          type: integer
+          format: int32
+          description: Number of items per page
+          example: 10
+        hasNext:
+          type: boolean
+          description: True if there is a next page
+          example: true
+        hasPrevious:
+          type: boolean
+          description: True if there is a previous page
+          example: false
+
+    ErrorResponse:
+      type: object
+      required:
+        - message
+        - timestamp
+      properties:
+        message:
+          type: string
+          description: High-level error message
+          example: Validation failed
+        errors:
+          type: array
+          description: List of detailed error messages
+          items:
+            type: string
+          example:
+            - "size: Page size cannot exceed 100"
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of when the error occurred
+          example: "2025-01-26T10:15:30Z"
+

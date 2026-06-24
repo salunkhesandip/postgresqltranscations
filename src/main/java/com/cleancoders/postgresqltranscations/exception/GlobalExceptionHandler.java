@@ -55,7 +55,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     /**
      * Overrides the parent handler for {@code @Valid} constraint violations.
-     * Returns HTTP 400 with a structured {@link ErrorResponse} body instead of the default ProblemDetail.
+     * Returns HTTP 422 Unprocessable Entity with a structured {@link ErrorResponse} body.
      */
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
@@ -63,10 +63,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                                    HttpStatusCode status,
                                                                    WebRequest request) {
         String detail = ex.getBindingResult().getFieldErrors().stream()
-                .map(fe -> fe.getField() + " " + fe.getDefaultMessage())
+                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .reduce((a, b) -> a + "; " + b)
                 .orElse(ex.getMessage());
-        return ResponseEntity.badRequest()
-                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), detail));
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ErrorResponse.of(HttpStatus.UNPROCESSABLE_ENTITY.value(), detail));
     }
 }

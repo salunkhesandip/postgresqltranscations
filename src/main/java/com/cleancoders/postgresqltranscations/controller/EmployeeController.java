@@ -1,10 +1,13 @@
 package com.cleancoders.postgresqltranscations.controller;
 
 import com.cleancoders.postgresqltranscations.dto.EmployeeDTO;
+import com.cleancoders.postgresqltranscations.dto.EmployeeSearchCriteria;
+import com.cleancoders.postgresqltranscations.dto.PagedEmployeeResponse;
 import com.cleancoders.postgresqltranscations.service.EmployeeService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.fge.jsonpatch.JsonPatchException;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,7 +30,7 @@ import java.util.List;
 
 @Tag(name = "Employee", description = "Employee management API")
 @RestController
-@RequestMapping("/employees")
+@RequestMapping("/api/employees")
 public class EmployeeController {
     private final EmployeeService employeeService;
 
@@ -117,5 +120,22 @@ public class EmployeeController {
     public ResponseEntity<Void> deleteEmployeeWithGreaterSalary(@PathVariable("salary") BigDecimal salary) {
         employeeService.deleteEmployeeWithGreaterSalary(salary);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Search employees with pagination and filtering",
+            description = "Supports filtering by name (partial, case-insensitive), salary range, and creation date range. " +
+                         "All filters are optional and can be combined. Results are paginated."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Search completed successfully (may return empty results)"),
+            @ApiResponse(responseCode = "422", description = "Validation error (invalid page size, salary range, or date range)"),
+            @ApiResponse(responseCode = "503", description = "Service temporarily unavailable (circuit breaker open)")
+    })
+    @GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<PagedEmployeeResponse> searchEmployees(
+            @Parameter(description = "Search criteria with pagination and filter parameters")
+            @Valid EmployeeSearchCriteria criteria) {
+        return ResponseEntity.ok(employeeService.searchEmployees(criteria));
     }
 }

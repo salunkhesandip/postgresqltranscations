@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public class EmployeeDTO implements Serializable {
     @NotNull
@@ -14,6 +15,10 @@ public class EmployeeDTO implements Serializable {
     private String empName;
     @NotNull
     private BigDecimal empSalary;
+
+    private String empAddress;       // Organizational unit or location
+    private LocalDate empCreatedDate; // Record creation timestamp
+    private LocalDate empUpdatedDate; // Last modification timestamp
 
     public Long getEmpId() {
         return empId;
@@ -37,5 +42,29 @@ public class EmployeeDTO implements Serializable {
 
     public void setEmpSalary(BigDecimal empSalary) {
         this.empSalary = empSalary;
+    }
+
+    public String getEmpAddress() {
+        return empAddress;
+    }
+
+    public void setEmpAddress(String empAddress) {
+        this.empAddress = empAddress;
+    }
+
+    public LocalDate getEmpCreatedDate() {
+        return empCreatedDate;
+    }
+
+    public void setEmpCreatedDate(LocalDate empCreatedDate) {
+        this.empCreatedDate = empCreatedDate;
+    }
+
+    public LocalDate getEmpUpdatedDate() {
+        return empUpdatedDate;
+    }
+
+    public void setEmpUpdatedDate(LocalDate empUpdatedDate) {
+        this.empUpdatedDate = empUpdatedDate;
     }
 }

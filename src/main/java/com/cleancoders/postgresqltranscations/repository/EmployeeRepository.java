@@ -2,6 +2,7 @@ package com.cleancoders.postgresqltranscations.repository;
 
 import com.cleancoders.postgresqltranscations.entity.Employee;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +12,8 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
-public interface EmployeeRepository extends JpaRepository<Employee, Long> {
+public interface EmployeeRepository extends JpaRepository<Employee, Long>,
+                                           JpaSpecificationExecutor<Employee> {
 
     /** JPQL: returns employees whose salary exceeds the given threshold. */
     @Query("SELECT e FROM Employee e WHERE e.empSalary > :salary")
