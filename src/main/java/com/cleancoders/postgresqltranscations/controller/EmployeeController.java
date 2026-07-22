@@ -25,9 +25,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.math.BigDecimal;
-import java.util.List;
+// Java 25: Module Import Declaration (JEP 511) — covers BigDecimal, List, and
+// any other java.base type used in this controller without individual imports.
+import module java.base;
 
+/// Thin REST layer for Employee CRUD and search operations.
+/// Delegates all business logic to [EmployeeService].
+/// No `@Transactional` annotations here — transaction boundaries live in the service.
+///
+/// **Java 25 feature used:** Module Import Declarations (JEP 511) —
+/// `import module java.base` replaces explicit `java.math.BigDecimal` and
+/// `java.util.List` imports.
 @Tag(name = "Employee", description = "Employee management API")
 @RestController
 @RequestMapping("/api/employees")

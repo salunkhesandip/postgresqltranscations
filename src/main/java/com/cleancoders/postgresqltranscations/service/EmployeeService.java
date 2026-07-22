@@ -1,5 +1,6 @@
 package com.cleancoders.postgresqltranscations.service;
 
+import com.cleancoders.postgresqltranscations.context.RequestContext;
 import com.cleancoders.postgresqltranscations.dto.EmployeeDTO;
 import com.cleancoders.postgresqltranscations.dto.EmployeeSearchCriteria;
 import com.cleancoders.postgresqltranscations.dto.PagedEmployeeResponse;
@@ -24,10 +25,23 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
+// Java 25: Module Import Declaration (JEP 511) — imports all public packages of java.base
+// in one line, replacing individual imports of BigDecimal, LocalDate, List, Gatherers, etc.
+import module java.base;
 
+/// Employee business logic — the sole transactional boundary in the application.
+///
+/// **Java 21–25 features demonstrated in this class:**
+/// - **`import module java.base`** (JEP 511, Java 25) — replaces explicit
+///   `java.math`, `java.time`, `java.util`, `java.util.stream` imports.
+/// - **Stream Gatherers** (JEP 485, Java 24) — `Gatherers.mapConcurrent` for
+///   concurrent DTO mapping in salary-filter read operations.
+/// - **Scoped Values** (JEP 506, Java 25) — fallback methods read the per-request
+///   `CORRELATION_ID` without any parameter threading, enabling distributed tracing
+///   even when the circuit breaker fires on a different thread.
+/// - **Virtual Threads** (JEP 444, Java 21) — enabled globally via
+///   `spring.threads.virtual.enabled=true`; all `@Transactional` DB calls are
+///   non-pinning when running on virtual threads.
 @Service
 public class EmployeeService {
     private final EmployeeRepository employeeRepository;
@@ -43,7 +57,7 @@ public class EmployeeService {
     }
 
     // -------------------------------------------------------------------------
-    // Write operations — guarded by backendA (COUNT_BASED, 50% threshold)
+    // Write operations — guarded by backendA (COUNT_BASED, 40% threshold, 15 s)
     // -------------------------------------------------------------------------
 
     @CircuitBreaker(name = "backendA", fallbackMethod = "saveEmployeeFallback")
@@ -94,7 +108,7 @@ public class EmployeeService {
     }
 
     // -------------------------------------------------------------------------
-    // Read operations — guarded by databaseCalls (TIME_BASED, 60 s) + retry
+    // Read operations — guarded by databaseCalls (TIME_BASED, 60 s, 60%) + retry
     // -------------------------------------------------------------------------
 
     @Retry(name = "databaseCalls")
@@ -114,7 +128,12 @@ public class EmployeeService {
         if (employees.isEmpty()) {
             throw new EmployeeNotFoundException("No employees found with salary above " + salary);
         }
-        return employees.stream().map(mapper::convertToEmployeeDTO).toList();
+        // Java 24: Stream Gatherers — mapConcurrent (JEP 485).
+        // Applies the mapping function concurrently across up to 4 virtual threads.
+        // Most valuable when the mapping function performs I/O (e.g. an external enrichment call).
+        return employees.stream()
+                .gather(Gatherers.mapConcurrent(4, mapper::convertToEmployeeDTO))
+                .toList();
     }
 
     @Retry(name = "databaseCalls")
@@ -125,48 +144,36 @@ public class EmployeeService {
         if (employees.isEmpty()) {
             throw new EmployeeNotFoundException("No employees found with salary above " + salary);
         }
-        return employees.stream().map(mapper::convertToEmployeeDTO).toList();
+        // Java 24: Stream Gatherers — mapConcurrent (JEP 485)
+        return employees.stream()
+                .gather(Gatherers.mapConcurrent(4, mapper::convertToEmployeeDTO))
+                .toList();
     }
 
-    /**
-     * Search employees with dynamic filtering and pagination.
-     * Supports filtering by name (partial, case-insensitive), salary range, and creation date range.
-     * User Stories 1-5 implementation.
-     */
+    /// Search employees with dynamic filtering and pagination.
+    /// Supports filtering by name (partial, case-insensitive), salary range,
+    /// and creation date range. User Stories 1–5 implementation.
     @Retry(name = "databaseCalls")
     @CircuitBreaker(name = "databaseCalls", fallbackMethod = "searchEmployeesFallback")
     @Transactional(readOnly = true)
     public PagedEmployeeResponse searchEmployees(EmployeeSearchCriteria criteria) {
-        // Build specification dynamically based on provided filters
         Specification<Employee> spec = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
 
-        // US2: Name filter (case-insensitive partial match)
         if (criteria.getName() != null && !criteria.getName().isBlank()) {
             spec = spec.and(EmployeeSpecification.hasName(criteria.getName()));
         }
-
-        // US3: Salary range filter
         if (criteria.getMinSalary() != null || criteria.getMaxSalary() != null) {
             spec = spec.and(EmployeeSpecification.hasSalaryBetween(
-                criteria.getMinSalary(), criteria.getMaxSalary()));
+                    criteria.getMinSalary(), criteria.getMaxSalary()));
         }
-
-        // US4: Creation date range filter
         if (criteria.getCreatedAfter() != null || criteria.getCreatedBefore() != null) {
             spec = spec.and(EmployeeSpecification.hasCreatedDateBetween(
-                criteria.getCreatedAfter(), criteria.getCreatedBefore()));
+                    criteria.getCreatedAfter(), criteria.getCreatedBefore()));
         }
 
-        // US1: Pagination
         Pageable pageable = PageRequest.of(criteria.getPage(), criteria.getSize());
-
-        // Execute query
         Page<Employee> page = employeeRepository.findAll(spec, pageable);
-
-        // Map entities to DTOs
         Page<EmployeeDTO> dtoPage = page.map(mapper::convertToEmployeeDTO);
-
-        // Return paginated response
         return PagedEmployeeResponse.fromPage(dtoPage);
     }
 
@@ -174,51 +181,73 @@ public class EmployeeService {
     // Circuit-breaker fallback methods
     // Package-private so they are directly testable from the same package.
     // Each must match the guarded method's signature plus a trailing Throwable.
+    //
+    // Java 25: Scoped Values (JEP 506) — RequestContext.CORRELATION_ID is bound
+    // per-request by CorrelationIdFilter and is readable here without any explicit
+    // parameter passing, making the error message traceable across distributed logs.
     // -------------------------------------------------------------------------
 
     EmployeeDTO saveEmployeeFallback(EmployeeDTO employeeDTO, Throwable t) {
+        String correlationId = RequestContext.CORRELATION_ID.orElse("n/a");
         throw new ServiceUnavailableException(
-                "Employee create temporarily unavailable. id=" + employeeDTO.getEmpId(), t);
+                "Employee create temporarily unavailable. id=" + employeeDTO.getEmpId()
+                + " correlationId=" + correlationId, t);
     }
 
     EmployeeDTO updateEmployeeFallback(EmployeeDTO employeeDTO, Throwable t) {
+        String correlationId = RequestContext.CORRELATION_ID.orElse("n/a");
         throw new ServiceUnavailableException(
-                "Employee update temporarily unavailable. id=" + employeeDTO.getEmpId(), t);
+                "Employee update temporarily unavailable. id=" + employeeDTO.getEmpId()
+                + " correlationId=" + correlationId, t);
     }
 
     EmployeeDTO patchEmployeeFallback(Long id, String jsonPatchRequest, Throwable t) {
+        String correlationId = RequestContext.CORRELATION_ID.orElse("n/a");
         throw new ServiceUnavailableException(
-                "Employee patch temporarily unavailable. id=" + id, t);
+                "Employee patch temporarily unavailable. id=" + id
+                + " correlationId=" + correlationId, t);
     }
 
     void deleteEmployeeFallback(Long id, Throwable t) {
+        String correlationId = RequestContext.CORRELATION_ID.orElse("n/a");
         throw new ServiceUnavailableException(
-                "Employee delete temporarily unavailable. id=" + id, t);
+                "Employee delete temporarily unavailable. id=" + id
+                + " correlationId=" + correlationId, t);
     }
 
     void deleteEmployeeWithGreaterSalaryFallback(BigDecimal salary, Throwable t) {
+        String correlationId = RequestContext.CORRELATION_ID.orElse("n/a");
         throw new ServiceUnavailableException(
-                "Bulk delete temporarily unavailable. salary=" + salary, t);
+                "Bulk delete temporarily unavailable. salary=" + salary
+                + " correlationId=" + correlationId, t);
     }
 
     EmployeeDTO findEmployeeFallback(Long id, Throwable t) {
+        String correlationId = RequestContext.CORRELATION_ID.orElse("n/a");
         throw new ServiceUnavailableException(
-                "Employee lookup temporarily unavailable. id=" + id, t);
+                "Employee lookup temporarily unavailable. id=" + id
+                + " correlationId=" + correlationId, t);
     }
 
     List<EmployeeDTO> findEmployeesBySalaryFallback(BigDecimal salary, Throwable t) {
+        String correlationId = RequestContext.CORRELATION_ID.orElse("n/a");
         throw new ServiceUnavailableException(
-                "Salary lookup temporarily unavailable. salary=" + salary, t);
+                "Salary lookup temporarily unavailable. salary=" + salary
+                + " correlationId=" + correlationId, t);
     }
 
     List<EmployeeDTO> findEmployeesBySalaryNativeFallback(BigDecimal salary, Throwable t) {
+        String correlationId = RequestContext.CORRELATION_ID.orElse("n/a");
         throw new ServiceUnavailableException(
-                "Salary lookup (native) temporarily unavailable. salary=" + salary, t);
+                "Salary lookup (native) temporarily unavailable. salary=" + salary
+                + " correlationId=" + correlationId, t);
     }
 
     PagedEmployeeResponse searchEmployeesFallback(EmployeeSearchCriteria criteria, Throwable t) {
+        String correlationId = RequestContext.CORRELATION_ID.orElse("n/a");
         throw new ServiceUnavailableException(
-                "Employee search temporarily unavailable. criteria=" + criteria, t);
+                "Employee search temporarily unavailable. criteria=" + criteria
+                + " correlationId=" + correlationId, t);
     }
 
     // -------------------------------------------------------------------------

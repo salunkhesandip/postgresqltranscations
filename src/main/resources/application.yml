@@ -1,4 +1,13 @@
 spring:
+  # Java 21: Virtual Threads (JEP 444) — enables virtual threads for the entire
+  # Tomcat request thread pool AND the async executor. Every @Transactional DB call
+  # blocks a virtual thread instead of a platform thread, allowing the JVM to park
+  # it during JDBC I/O and reuse the carrier thread for other requests.
+  # Zero code changes required — this single property activates Project Loom.
+  threads:
+    virtual:
+      enabled: true
+
   datasource:
     url: jdbc:postgresql://localhost:5432/javatest
     username: postgres
@@ -39,53 +48,54 @@ resilience4j:
   circuitbreaker:
     configs:
       default:
-        registerHealthIndicator: true
-        slidingWindowType: COUNT_BASED        # COUNT_BASED or TIME_BASED
-        slidingWindowSize: 100                # number of calls in the sliding window (for COUNT_BASED)
-        minimumNumberOfCalls: 10              # minimum calls before calculating failure rate
-        permittedNumberOfCallsInHalfOpenState: 10
-        waitDurationInOpenState: 10s          # how long to keep the CB open before moving to HALF_OPEN
-        failureRateThreshold: 50              # percentage of failures to trip the CB
-        slowCallRateThreshold: 100            # percent of slow calls to consider as failure (optional)
-        slowCallDurationThreshold: 2s         # threshold to mark a call as slow (Duration)
-        eventConsumerBufferSize: 10
-        recordExceptions:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED        # COUNT_BASED or TIME_BASED
+        sliding-window-size: 100                # number of calls in the sliding window (for COUNT_BASED)
+        minimum-number-of-calls: 10             # minimum calls before calculating failure rate
+        permitted-number-of-calls-in-half-open-state: 10
+        wait-duration-in-open-state: 10s        # how long to keep the CB open before moving to HALF_OPEN
+        failure-rate-threshold: 50              # percentage of failures to trip the CB
+        slow-call-rate-threshold: 100           # percent of slow calls to consider as failure (optional)
+        slow-call-duration-threshold: 2s        # threshold to mark a call as slow (Duration)
+        event-consumer-buffer-size: 10
+        record-exceptions:
           - java.io.IOException
           - org.springframework.dao.DataAccessException
           - java.sql.SQLException
-        ignoreExceptions:
+        ignore-exceptions:
           - org.springframework.web.client.HttpClientErrorException$NotFound
     instances:
       backendA:
-        baseConfig: default
-        slidingWindowSize: 50
-        minimumNumberOfCalls: 5
-        failureRateThreshold: 40
-        waitDurationInOpenState: 15s
-        recordExceptions:
+        base-config: default
+        sliding-window-size: 50
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 40
+        wait-duration-in-open-state: 15s
+        record-exceptions:
           - org.springframework.dao.DataAccessException
           - java.sql.SQLException
           - java.net.SocketTimeoutException
       databaseCalls:
-        baseConfig: default
-        slidingWindowType: TIME_BASED         # use a time window for DB calls
-        slidingWindowSize: 60                 # 60 seconds when TIME_BASED
-        minimumNumberOfCalls: 20
-        failureRateThreshold: 60
-        waitDurationInOpenState: 30s
-        recordExceptions:
+        base-config: default
+        sliding-window-type: TIME_BASED         # use a time window for DB calls
+        sliding-window-size: 60                 # 60 seconds when TIME_BASED
+        minimum-number-of-calls: 20
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 30s
+        record-exceptions:
           - org.springframework.dao.DataAccessException
           - java.sql.SQLException
           - java.net.SocketTimeoutException
   retry:
     instances:
       databaseCalls:
-        maxAttempts: 3
-        waitDuration: 500ms
-        retryExceptions:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
           - org.springframework.dao.TransientDataAccessException
           - java.sql.SQLTransientException
-        ignoreExceptions:
-          - com.cleancoders.postgresqltranscations.exception.EmployeeNotFoundException
-          - com.cleancoders.postgresqltranscations.exception.EmployeeConflictException
-          - com.cleancoders.postgresqltranscations.exception.ServiceUnavailableException
+        # Java 21: Sealed Classes — EmployeeDomainException is the sealed parent of
+        # EmployeeNotFoundException, EmployeeConflictException, and ServiceUnavailableException.
+        # Resilience4j resolves ignore via isAssignableFrom, so one entry covers all three.
+        ignore-exceptions:
+          - com.cleancoders.postgresqltranscations.exception.EmployeeDomainException

@@ -12,6 +12,16 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+/// Centralised HTTP error mapping for all domain and infrastructure exceptions.
+///
+/// **Java 21 features used:**
+/// - **Pattern Matching for `switch`** (JEP 441) — one `@ExceptionHandler` for the
+///   entire sealed [EmployeeDomainException] hierarchy. The `switch` is **exhaustive**
+///   because [EmployeeDomainException] is sealed: the compiler enforces that every
+///   permitted subtype (`EmployeeNotFoundException`, `EmployeeConflictException`,
+///   `ServiceUnavailableException`) is covered. Adding a new subtype without
+///   updating this switch causes a **compile error**, not a silent 500.
+/// - **Sealed Classes** (JEP 409) — the exhaustiveness guarantee described above.
 @ControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
@@ -19,33 +29,34 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         super();
     }
 
-    @ExceptionHandler(EmployeeConflictException.class)
-    protected ResponseEntity<ErrorResponse> handleConflict(EmployeeConflictException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErrorResponse.of(HttpStatus.CONFLICT.value(), ex.getMessage()));
+    /// Handles all [EmployeeDomainException] subtypes with a single method.
+    ///
+    /// **Java 21: Pattern Matching for switch (JEP 441)**
+    /// The `switch` is exhaustive — no `default` branch is needed or allowed.
+    /// Attempting to add a new `permits` subtype without a matching `case` here
+    /// produces a compile-time error.
+    @ExceptionHandler(EmployeeDomainException.class)
+    protected ResponseEntity<ErrorResponse> handleDomainException(EmployeeDomainException ex) {
+        // Java 21: switch with type patterns — replaces three separate @ExceptionHandler methods.
+        // Exhaustive because EmployeeDomainException is sealed.
+        return switch (ex) {
+            case EmployeeNotFoundException e ->
+                    ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(ErrorResponse.of(HttpStatus.NOT_FOUND.value(), e.getMessage()));
+
+            case EmployeeConflictException e ->
+                    ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(ErrorResponse.of(HttpStatus.CONFLICT.value(), e.getMessage()));
+
+            case ServiceUnavailableException e ->
+                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .body(ErrorResponse.of(HttpStatus.SERVICE_UNAVAILABLE.value(), e.getMessage()));
+        };
     }
 
-    @ExceptionHandler(EmployeeNotFoundException.class)
-    protected ResponseEntity<ErrorResponse> handleNotFound(EmployeeNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.of(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
-    }
-
-    /**
-     * Handles {@link ServiceUnavailableException} thrown by circuit-breaker fallback methods.
-     * Returns HTTP 503 so callers know the service is temporarily degraded.
-     */
-    @ExceptionHandler(ServiceUnavailableException.class)
-    protected ResponseEntity<ErrorResponse> handleServiceUnavailable(ServiceUnavailableException ex) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(ErrorResponse.of(HttpStatus.SERVICE_UNAVAILABLE.value(), ex.getMessage()));
-    }
-
-    /**
-     * Handles malformed or invalid JSON Patch documents.
-     * Returns HTTP 422 Unprocessable Entity — the request was well-formed JSON
-     * but the patch semantics were invalid.
-     */
+    /// Handles malformed or semantically invalid JSON Patch documents.
+    /// Returns **HTTP 422 Unprocessable Entity** — the request was well-formed JSON
+    /// but the patch semantics were invalid.
     @ExceptionHandler({JsonPatchException.class, JsonProcessingException.class})
     protected ResponseEntity<ErrorResponse> handleJsonPatch(Exception ex) {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
@@ -53,10 +64,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                         "Invalid JSON Patch: " + ex.getMessage()));
     }
 
-    /**
-     * Overrides the parent handler for {@code @Valid} constraint violations.
-     * Returns HTTP 422 Unprocessable Entity with a structured {@link ErrorResponse} body.
-     */
+    /// Overrides the parent handler for `@Valid` constraint violations.
+    /// Returns **HTTP 422 Unprocessable Entity** with a structured [ErrorResponse] body
+    /// listing every field that failed validation.
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
                                                                    HttpHeaders headers,
